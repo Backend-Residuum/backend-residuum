@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
+from app.dependencies.auth import get_current_user, require_role
 from app.models.descarte import Descarte
 from app.models.usuario import Usuario
 from app.schemas.descarte import DescarteCreate, DescarteResponse, DescarteConfirmar
@@ -11,7 +12,11 @@ from app.services.pontuacao_service import calcular_pontos_proporcionais
 router = APIRouter()
 
 @router.post("/", response_model=DescarteResponse)
-async def registrar_descarte(obj_in: DescarteCreate, db: Session = Depends(get_db)):
+async def registrar_descarte(
+    obj_in: DescarteCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
     if not validar_quantidade(obj_in.quantidade):
         raise HTTPException(status_code=400, detail="Quantidade inválida.")
     if not validar_residuo(obj_in.tipo_residuo):
@@ -24,7 +29,7 @@ async def registrar_descarte(obj_in: DescarteCreate, db: Session = Depends(get_d
         tipo_residuo=obj_in.tipo_residuo,
         observacao=obj_in.observacao,
         status='pendente',
-        usuario_id=obj_in.usuario_id
+        usuario_id=usuario.id,
     )
     db.add(novo_descarte)
     db.commit()
@@ -32,8 +37,18 @@ async def registrar_descarte(obj_in: DescarteCreate, db: Session = Depends(get_d
     return novo_descarte
 
 @router.get("/historico")
-async def ver_historico(db: Session = Depends(get_db)):
-    return db.query(Descarte).all()
+async def ver_historico(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    return db.query(Descarte).filter(Descarte.usuario_id == usuario.id).all()
+
+@router.get("/historico/geral")
+async def ver_historico_geral(
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_role("admin")),
+):
+    return db.query(Descarte).order_by(Descarte.data_desc.desc()).all()
 
 @router.put("/{id_descarte}/confirmar")
 async def confirmar_descarte(id_descarte: int, obj_in: DescarteConfirmar, db: Session = Depends(get_db)):

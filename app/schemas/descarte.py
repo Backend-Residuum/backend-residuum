@@ -10,7 +10,6 @@ class DescarteCreate(BaseModel):
     usuario_long: float
     ponto_lat: float
     ponto_long: float
-    usuario_id: int
 
 class DescarteConfirmar(BaseModel):
     quantidade_confirmada: float

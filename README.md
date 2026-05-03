@@ -1,8 +1,8 @@
-# Residium — Módulo de Inteligência e Logística de Descarte
+# Residuum — Módulo de Inteligência e Logística de Descarte
 
 ## Visão Geral
 
-Este repositório contém o **módulo de inteligência e logística** da plataforma **Residium** — sistema responsável pelo registro, validação e confirmação de descartes de resíduos recicláveis, bem como pela geração automática de pontuação para os usuários. A API foi desenvolvida com foco em regras de negócio claras: validação de localização, verificação do tipo de resíduo aceito e cálculo proporcional de pontos com base no peso real confirmado pela cooperativa.
+Este repositório contém o **módulo de inteligência e logística** da plataforma **Residuum** — sistema responsável pelo registro, validação e confirmação de descartes de resíduos recicláveis, bem como pela geração automática de pontuação para os usuários. A API foi desenvolvida com foco em regras de negócio claras: validação de localização, verificação do tipo de resíduo aceito e cálculo proporcional de pontos com base no peso real confirmado pela cooperativa.
 
 ---
 
@@ -25,7 +25,7 @@ Este repositório contém o **módulo de inteligência e logística** da platafo
 
 ```bash
 git clone <url-do-repositorio>
-cd residium
+cd residuum
 ```
 
 ### 2. Criar e ativar o ambiente virtual
@@ -62,26 +62,56 @@ pip install -r requirements.txt
 Acesse o `psql` ou o pgAdmin e execute:
 
 ```sql
-CREATE DATABASE residum;
+CREATE DATABASE residuum;
 ```
 
 ### 2. Restaurar o script SQL (se fornecido)
 
 ```bash
-psql -U postgres -d residum -f script_residum.sql
+psql -U postgres -d residuum -f script_residuum.sql
 ```
 
-### 3. Aplicar as colunas necessárias na tabela de descarte
+### 3. Aplicar o schema com Alembic
 
-Caso o banco já exista de uma versão anterior, adicione as colunas manualmente:
+O projeto usa **Alembic** para versionar mudanças no banco. Toda alteração de modelo (adicionar coluna, criar tabela, etc.) gera uma migration que é aplicada de forma controlada — **não** confie em `Base.metadata.create_all` para evoluir o schema.
 
-```sql
-ALTER TABLE descarte ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pendente';
-ALTER TABLE descarte ADD COLUMN IF NOT EXISTS usuario_id INTEGER;
-ALTER TABLE descarte ADD COLUMN IF NOT EXISTS quantidade_confirmada FLOAT;
+#### Aplicar as migrations existentes
+
+Com o banco vazio (recém-criado) e o `.env` configurado, rode:
+
+```bash
+alembic upgrade head
 ```
 
-> **Nota:** As migrações são aplicadas automaticamente ao iniciar a API (`Base.metadata.create_all`), mas em bancos pré-existentes os `ALTER TABLE` acima garantem a compatibilidade.
+Isso aplica todas as migrations da pasta `alembic/versions/` em ordem, deixando o banco no estado mais recente.
+
+#### Criar uma nova migration após mudar um modelo
+
+1. Edite o modelo SQLAlchemy em `app/models/` (adicionar coluna, alterar tipo, etc.).
+2. Gere a migration automaticamente comparando modelos × banco:
+
+   ```bash
+   alembic revision --autogenerate -m "descrição curta da mudança"
+   ```
+
+3. **Revise** o arquivo gerado em `alembic/versions/` antes de aplicar — o autogenerate é bom mas não infalível (atenção a renomeações de coluna, que ele interpreta como drop+add).
+4. Aplique:
+
+   ```bash
+   alembic upgrade head
+   ```
+
+#### Comandos úteis
+
+| Comando | Descrição |
+|---|---|
+| `alembic current` | Mostra a revision atualmente aplicada no banco |
+| `alembic history` | Lista todas as migrations e a ordem |
+| `alembic downgrade -1` | Reverte a última migration aplicada |
+| `alembic downgrade base` | Reverte tudo (volta ao banco vazio) |
+| `alembic stamp head` | Marca o banco como atualizado sem rodar migrations (use só se o schema já bate manualmente) |
+
+> **Importante:** o `env.py` do Alembic carrega o `.env` automaticamente e usa `DATABASE_URL` para conectar. Não há `sqlalchemy.url` hardcoded no `alembic.ini`.
 
 ---
 
@@ -90,7 +120,7 @@ ALTER TABLE descarte ADD COLUMN IF NOT EXISTS quantidade_confirmada FLOAT;
 Crie um arquivo `.env` na raiz do projeto com o seguinte conteúdo:
 
 ```env
-DATABASE_URL=postgresql://postgres:<sua_senha>@localhost:5432/residum
+DATABASE_URL=postgresql://postgres:<sua_senha>@localhost:5432/residuum
 SECRET_KEY=sua_chave_secreta_aqui
 ```
 
@@ -159,14 +189,20 @@ No exemplo acima: **4,5 kg × 10 = 45 pontos** creditados ao usuário.
 ## Estrutura do Projeto
 
 ```
-residium/
+residuum/
+├── alembic/
+│   ├── versions/                # Scripts de migration versionados
+│   ├── env.py                   # Bootstrap do Alembic (lê .env e Base.metadata)
+│   └── script.py.mako           # Template usado para gerar novas migrations
 ├── app/
 │   ├── core/
+│   │   ├── decorators.py        # Decorator @public para marcar rotas sem auth
 │   │   └── security.py          # Geração e validação de tokens JWT
 │   ├── dependencies/
-│   │   └── auth.py              # Injeção de dependência do usuário autenticado
+│   │   └── auth.py              # get_current_user e require_role
 │   ├── models/
 │   │   ├── descarte.py          # Modelo ORM da tabela de descartes
+│   │   ├── endereco.py          # Modelo ORM da tabela de endereços
 │   │   └── usuario.py           # Modelo ORM da tabela de usuários
 │   ├── routes/
 │   │   ├── auth.py              # Endpoints de autenticação (login/registro)
@@ -179,6 +215,8 @@ residium/
 │   │   └── validacao_service.py     # Validação de quantidade e tipo de resíduo
 │   ├── database.py              # Configuração da engine e sessão do SQLAlchemy
 │   └── main.py                  # Ponto de entrada da aplicação FastAPI
+├── alembic.ini                  # Configuração do Alembic
+├── docker-compose.yml           # Postgres local para desenvolvimento
 ├── requirements.txt
 ├── .env                         # Variáveis de ambiente (não versionar)
 └── README.md

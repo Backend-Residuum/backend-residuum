@@ -7,7 +7,7 @@ Ele fornece funções para criar, verificar tokens e obter o usuário atual a pa
 
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, Request, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 import os
@@ -64,6 +64,33 @@ def verificar_token(token: str):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido ou expirado"
         )
+
+
+# Variante opcional do Bearer: não levanta 403 quando o header está ausente,
+# permitindo que rotas marcadas com @public passem sem token.
+optional_security = HTTPBearer(auto_error=False)
+
+
+def require_auth_unless_public(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(optional_security),
+):
+    """
+    Dependência global: exige JWT válido em todas as rotas, exceto naquelas
+    cujo endpoint foi marcado com o decorator @public.
+    """
+    endpoint = request.scope.get("endpoint")
+    if endpoint is not None and getattr(endpoint, "_is_public", False):
+        return None
+
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de autenticação ausente",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return verificar_token(credentials.credentials)
 
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
