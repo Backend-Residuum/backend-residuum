@@ -23,14 +23,14 @@ Este repositório contém o **módulo de inteligência e logística** da platafo
 
 ### 1. Clonar o repositório
 
-bash
+```bash
 git clone <url-do-repositorio>
 cd residium
-
+```
 
 ### 2. Criar e ativar o ambiente virtual
 
-bash
+```bash
 # Criar o venv
 python -m venv venv
 
@@ -39,19 +39,19 @@ venv\Scripts\activate
 
 # Ativar no Linux/macOS
 source venv/bin/activate
-
+```
 
 ### 3. Instalar as dependências
 
-bash
+```bash
 pip install fastapi uvicorn sqlalchemy psycopg2-binary passlib[bcrypt] python-jose python-dotenv
-
+```
 
 Ou, se o arquivo `requirements.txt` já estiver presente:
 
-bash
+```bash
 pip install -r requirements.txt
-
+```
 
 ---
 
@@ -61,25 +61,25 @@ pip install -r requirements.txt
 
 Acesse o `psql` ou o pgAdmin e execute:
 
-sql
+```sql
 CREATE DATABASE residum;
-
+```
 
 ### 2. Restaurar o script SQL (se fornecido)
 
-bash
+```bash
 psql -U postgres -d residum -f script_residum.sql
-
+```
 
 ### 3. Aplicar as colunas necessárias na tabela de descarte
 
 Caso o banco já exista de uma versão anterior, adicione as colunas manualmente:
 
-sql
+```sql
 ALTER TABLE descarte ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pendente';
 ALTER TABLE descarte ADD COLUMN IF NOT EXISTS usuario_id INTEGER;
 ALTER TABLE descarte ADD COLUMN IF NOT EXISTS quantidade_confirmada FLOAT;
-
+```
 
 > **Nota:** As migrações são aplicadas automaticamente ao iniciar a API (`Base.metadata.create_all`), mas em bancos pré-existentes os `ALTER TABLE` acima garantem a compatibilidade.
 
@@ -89,12 +89,12 @@ ALTER TABLE descarte ADD COLUMN IF NOT EXISTS quantidade_confirmada FLOAT;
 
 Crie um arquivo `.env` na raiz do projeto com o seguinte conteúdo:
 
-env
+```env
 DATABASE_URL=postgresql://postgres:<sua_senha>@localhost:5432/residum
 SECRET_KEY=sua_chave_secreta_aqui
+```
 
-
-Substitua `<sua_senha>` pela senha do seu usuário PostgreSQL e defina uma `SECRET_KEY` forte para a geração de tokens JWT.
+> Substitua `<sua_senha>` pela senha do seu usuário PostgreSQL e defina uma `SECRET_KEY` forte para a geração de tokens JWT.
 
 ---
 
@@ -102,9 +102,9 @@ Substitua `<sua_senha>` pela senha do seu usuário PostgreSQL e defina uma `SECR
 
 Com o ambiente virtual ativado e o banco configurado, execute:
 
-bash
+```bash
 uvicorn app.main:app --reload
-
+```
 
 A API estará disponível em:
 
@@ -122,7 +122,7 @@ O fluxo principal do módulo envolve duas etapas: **registro** e **confirmação
 
 Envie uma requisição `POST /descarte/` com o payload abaixo. O sistema valida a quantidade, o tipo de resíduo (`garrafa pet`) e a proximidade do ponto de coleta antes de salvar.
 
-json
+```json
 POST /descarte/
 {
   "quantidade": 5.0,
@@ -134,7 +134,7 @@ POST /descarte/
   "ponto_lat": -23.5510,
   "ponto_long": -46.6340
 }
-
+```
 
 **Resposta esperada:** descarte salvo com `status: "pendente"`.
 
@@ -142,12 +142,12 @@ POST /descarte/
 
 A cooperativa confirma o peso real recebido. Envie uma requisição `PUT /descarte/{id}/confirmar`:
 
-json
+```json
 PUT /descarte/1/confirmar
 {
   "quantidade_confirmada": 4.5
 }
-
+```
 
 **Regra de pontuação:** `10 pontos por kg confirmado`.  
 No exemplo acima: **4,5 kg × 10 = 45 pontos** creditados ao usuário.
@@ -158,7 +158,7 @@ No exemplo acima: **4,5 kg × 10 = 45 pontos** creditados ao usuário.
 
 ## Estrutura do Projeto
 
-
+```
 residium/
 ├── app/
 │   ├── core/
@@ -182,9 +182,9 @@ residium/
 ├── requirements.txt
 ├── .env                         # Variáveis de ambiente (não versionar)
 └── README.md
+```
 
-
---
+---
 
 ## Branch de Desenvolvimento
 
