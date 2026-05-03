@@ -1,0 +1,52 @@
+"""
+Dependências de Autenticação
+
+Este módulo define dependências para autenticação no FastAPI.
+Inclui funções para obter o usuário atual a partir do token JWT.
+"""
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models.usuario import Usuario
+from app.core.security import verificar_token
+
+# Esquema de segurança Bearer para autenticação
+security = HTTPBearer()
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """
+    Dependência para obter o usuário atual autenticado.
+
+    Extrai o token do cabeçalho, valida e busca o usuário no banco.
+    Lança erro se o token for inválido ou o usuário não existir.
+    """
+    token = credentials.credentials  # Token do cabeçalho Authorization
+
+    # Verifica e decodifica o token
+    payload = verificar_token(token)
+
+    # Extrai o ID do usuário do payload
+    user_id = payload.get("sub")
+
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido"
+        )
+
+    # Busca o usuário no banco de dados
+    usuario = db.query(Usuario).filter(Usuario.id == int(user_id)).first()
+
+    if not usuario:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuário não encontrado"
+        )
+
+    return usuario
