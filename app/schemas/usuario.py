@@ -8,9 +8,7 @@ from pydantic import BaseModel
 
 
 class UsuarioCreate(BaseModel):
-    """
-    Modelo para criação de um novo usuário.
-
+    """Modelo para criação de um novo usuário."""
 
     nome: str
     email: str
