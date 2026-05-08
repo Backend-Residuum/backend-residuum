@@ -44,6 +44,13 @@ Define o engine, a sessão e a base para os modelos.
 #         yield db  # Retorna a sessão para o contexto
 #     finally:
 #         db.close()  # Fecha a sessão ao final
+
+"""
+Configuração do Banco de Dados
+
+Este módulo configura a conexão com o banco de dados usando SQLAlchemy.
+Modificado para teste local pratico podendo ser alterado.
+"""
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 

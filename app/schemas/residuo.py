@@ -1,3 +1,9 @@
+"""
+Schemas de Resíduo
+
+Define os modelos Pydantic para criação e manipulação de resíduos.
+Usados na validação de dados de resíduos nas APIs.
+"""
 from pydantic import BaseModel
 
 
