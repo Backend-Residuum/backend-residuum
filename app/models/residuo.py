@@ -2,7 +2,7 @@
 Modelo de Resíduo
 
 Define a estrutura da tabela 'residuos' no banco de dados.
-Registra os resíduos que foram colectados ou descartados pelos usuários.
+Registra os resíduos que foram colectados ou descartados pelos usuários..
 """
 
 from sqlalchemy import Column, Integer, String
