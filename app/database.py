@@ -5,42 +5,66 @@ Este módulo configura a conexão com o banco de dados usando SQLAlchemy.
 Define o engine, a sessão e a base para os modelos.
 """
 
+# from sqlalchemy import create_engine
+# from sqlalchemy.orm import sessionmaker, declarative_base
+# from dotenv import load_dotenv
+# import os
+
+# # Carrega variáveis de ambiente
+# load_dotenv()
+
+# # URL do banco de dados obtida das variáveis de ambiente
+# DATABASE_URL = os.getenv("DATABASE_URL")
+
+# # Cria o engine do SQLAlchemy com a URL do banco
+# engine = create_engine(
+#     DATABASE_URL,
+#     echo=True  # Habilita logs das queries SQL para depuração
+# )
+
+# # Configura a fábrica de sessões do banco
+# SessionLocal = sessionmaker(
+#     autocommit=False,  # Não confirma automaticamente as transações
+#     autoflush=False,   # Não flushe automaticamente as mudanças
+#     bind=engine        # Vincula ao engine criado
+# )
+
+# # Base declarativa para definir modelos
+# Base = declarative_base()
+
+# def get_db():
+#     """
+#     Gerador de sessão de banco de dados.
+
+#     Fornece uma sessão para uso em dependências do FastAPI.
+#     Garante que a sessão seja fechada após o uso.
+#     """
+#     db = SessionLocal()
+#     try:
+#         yield db  # Retorna a sessão para o contexto
+#     finally:
+#         db.close()  # Fecha a sessão ao final
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from dotenv import load_dotenv
-import os
 
-# Carrega variáveis de ambiente
-load_dotenv()
+DATABASE_URL = "sqlite:///./residuum.db"
 
-# URL do banco de dados obtida das variáveis de ambiente
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-# Cria o engine do SQLAlchemy com a URL do banco
 engine = create_engine(
     DATABASE_URL,
-    echo=True  # Habilita logs das queries SQL para depuração
+    connect_args={"check_same_thread": False}
 )
 
-# Configura a fábrica de sessões do banco
 SessionLocal = sessionmaker(
-    autocommit=False,  # Não confirma automaticamente as transações
-    autoflush=False,   # Não flushe automaticamente as mudanças
-    bind=engine        # Vincula ao engine criado
+    autocommit=False,
+    autoflush=False,
+    bind=engine
 )
 
-# Base declarativa para definir modelos
 Base = declarative_base()
 
 def get_db():
-    """
-    Gerador de sessão de banco de dados.
-
-    Fornece uma sessão para uso em dependências do FastAPI.
-    Garante que a sessão seja fechada após o uso.
-    """
     db = SessionLocal()
     try:
-        yield db  # Retorna a sessão para o contexto
+        yield db
     finally:
-        db.close()  # Fecha a sessão ao final
+        db.close()
