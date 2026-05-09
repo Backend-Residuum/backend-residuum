@@ -30,6 +30,10 @@ async def registrar_descarte(
         observacao=obj_in.observacao,
         status='pendente',
         usuario_id=usuario.id,
+        usuario_lat=obj_in.usuario_lat,
+        usuario_long=obj_in.usuario_long, 
+        ponto_lat=obj_in.ponto_lat,       
+        ponto_long=obj_in.ponto_long      
     )
     db.add(novo_descarte)
     db.commit()
