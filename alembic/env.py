@@ -12,37 +12,52 @@ from alembic import context
 # Garante que o pacote 'app' seja importável quando rodando alembic da raiz
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-# --- ALTERAÇÃO 1: Comentamos o load_dotenv() para evitar conflito com o OneDrive ---
-# load_dotenv()
+# Carrega variáveis do .env (DATABASE_URL)
+load_dotenv()
 
 # Importa Base e todos os modelos para que o autogenerate enxergue as tabelas
 from app.database import Base  # noqa: E402
 import app.models.usuario  # noqa: F401, E402
 import app.models.endereco  # noqa: F401, E402
-import app.models.descarte  # noqa: F401, E402
+import app.models.descarte # noqa: F401, E402
+import app.models.estoque # noqa: F401, E402
+import app.models.pontuacao # noqa: F401, E402
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-# --- ALTERAÇÃO 2: Corrigida a sintaxe da URL e limpeza de caracteres ---
-# Removido o os.getenv que estava com a string inteira dentro do parêntese.
-# Definimos a URL diretamente para garantir que o Python não pegue lixo do Windows.
-database_url = "postgresql://postgres:residum@localhost:5432/residuum"
-
+# Sobrescreve a URL do banco com a do .env
+database_url = os.getenv("DATABASE_URL")
 if database_url:
-    # O .encode().decode() remove bytes fantasmas (como o 0xe7) que causam erro de UTF-8
-    clean_url = database_url.encode('utf-8').decode('utf-8').strip()
-    config.set_main_option("sqlalchemy.url", clean_url)
+    config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.
+# This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Metadata alvo para autogenerate
 target_metadata = Base.metadata
 
+# other values from the config, defined by the needs of env.py,
+# can be acquired:
+# my_important_option = config.get_main_option("my_important_option")
+# ... etc.
+
+
 def run_migrations_offline() -> None:
+    """Run migrations in 'offline' mode.
+
+    This configures the context with just a URL
+    and not an Engine, though an Engine is acceptable
+    here as well.  By skipping the Engine creation
+    we don't even need a DBAPI to be available.
+
+    Calls to context.execute() here emit the given string to the
+    script output.
+
+    """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -54,13 +69,16 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
-def run_migrations_online() -> None:
-    # --- ALTERAÇÃO 3: Forçamos a URL limpa na criação do Engine ---
-    configuration = config.get_section(config.config_ini_section, {})
-    configuration["sqlalchemy.url"] = database_url
 
+def run_migrations_online() -> None:
+    """Run migrations in 'online' mode.
+
+    In this scenario we need to create an Engine
+    and associate a connection with the context.
+
+    """
     connectable = engine_from_config(
-        configuration,
+        config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
@@ -72,6 +90,7 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()
