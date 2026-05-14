@@ -18,9 +18,9 @@ async def registrar_descarte(
     usuario: Usuario = Depends(get_current_user),
 ):
     if not validar_quantidade(obj_in.quantidade):
-        raise HTTPException(status_code=400, detail="Quantidade inválida.")
+        raise HTTPException(status_code=400, detail="Quantidade inválida. O valor deve estar entre 1 e 1000.")
     if not validar_residuo(obj_in.tipo_residuo):
-        raise HTTPException(status_code=400, detail="Apenas 'garrafa pet' é aceito.")
+        raise HTTPException(status_code=400, detail="Tipo de resíduo não aceito.")
     if not validar_localizacao(obj_in.usuario_lat, obj_in.usuario_long, obj_in.ponto_lat, obj_in.ponto_long):
         raise HTTPException(status_code=403, detail="Muito longe do ponto de coleta.")
 
