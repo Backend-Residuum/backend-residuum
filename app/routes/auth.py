@@ -6,6 +6,7 @@ Usa hashing de senha com bcrypt e JWT para tokens.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Body
+from app.schemas.base import BaseResponse
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
@@ -13,7 +14,7 @@ from app.database import get_db
 from app.models.usuario import Usuario
 from app.models.endereco import Endereco
 from app.schemas.usuario import UsuarioCreate
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.auth import LoginRequest
 
 from app.core.security import criar_token
 from app.core.decorators import public
@@ -41,7 +42,7 @@ def verificar_senha(senha: str, hash: str):
 # ========================
 # CADASTRO DE USUÁRIO
 # ========================
-@router.post("/usuarios")
+@router.post("/usuarios", response_model=BaseResponse)
 @public
 def criar_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)):
     """
@@ -49,10 +50,24 @@ def criar_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)):
 
     O endereço é cadastrado posteriormente via PUT /me/endereco.
     """
-    usuario_existente = db.query(Usuario).filter(Usuario.email == usuario.email).first()
-    if usuario_existente:
-        raise HTTPException(status_code=400, detail="Email já cadastrado")
 
+    # Busca usuário pelo email
+    usuario_existente = db.query(Usuario).filter(
+        Usuario.email == usuario.email
+    ).first()
+
+    # Verifica se já existe usuário com o email informado
+    if usuario_existente:
+      raise HTTPException(
+        status_code=400,
+        detail={
+            "success": False,
+            "message": "Email já cadastrado",
+            "data": None
+        }
+    )
+
+    # Cria novo usuário
     novo_usuario = Usuario(
         nome=usuario.nome,
         email=usuario.email,
@@ -61,16 +76,24 @@ def criar_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)):
         pontuacao_total=0,
     )
 
+    # Salva no banco
     db.add(novo_usuario)
     db.commit()
     db.refresh(novo_usuario)
 
-    return {"msg": "Usuário criado com sucesso"}
+    # Retorna resposta padronizada
+    return BaseResponse(
+        success=True,
+        message="Usuário criado com sucesso",
+        data={
+            "id": novo_usuario.id,
+            "nome": novo_usuario.nome,
+            "email": novo_usuario.email,
+            "telefone": novo_usuario.telefone
+        }
+    )
 
-# ========================
-# LOGIN
-# ========================
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=BaseResponse)
 @public
 def login(dados: LoginRequest = Body(...), db: Session = Depends(get_db)):
     """
@@ -78,20 +101,32 @@ def login(dados: LoginRequest = Body(...), db: Session = Depends(get_db)):
 
     Verifica email e senha, e retorna um token JWT se válido.
     """
-    # Busca o usuário pelo email
-    usuario = db.query(Usuario).filter(Usuario.email == dados.email).first()
 
+    # Busca o usuário pelo email
+    usuario = db.query(Usuario).filter(
+        Usuario.email == dados.email
+    ).first()
+
+    # Verifica se o usuário existe
     if not usuario:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha inválidos"
+            detail={
+                "success": False,
+                "message": "Email ou senha inválidos",
+                "data": None
+            }
         )
 
-    # Verifica a senha
+    # Verifica se a senha está correta
     if not verificar_senha(dados.senha, usuario.senha_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha inválidos"
+            detail={
+                "success": False,
+                "message": "Email ou senha inválidos",
+                "data": None
+            }
         )
 
     # Gera o token JWT
@@ -100,15 +135,20 @@ def login(dados: LoginRequest = Body(...), db: Session = Depends(get_db)):
         "email": usuario.email
     })
 
-    return {
-        "access_token": token,
-        "token_type": "bearer"
-    }
+    # Retorna token padronizado
+    return BaseResponse(
+        success=True,
+        message="Login realizado com sucesso",
+        data={
+            "access_token": token,
+            "token_type": "bearer"
+        }
+    )
 
 # ========================
 # PERFIL DO USUÁRIO LOGADO
 # ========================
-@router.get("/me")
+@router.get("/me", response_model=BaseResponse)
 def get_me(usuario: Usuario = Depends(get_current_user)):
     """
     Retorna os dados básicos do usuário autenticado.
@@ -126,12 +166,18 @@ def get_me(usuario: Usuario = Depends(get_current_user)):
             "cidade": usuario.endereco.cidade,
         }
 
-    return {
-        "id": usuario.id,
-        "nome": usuario.nome,
-        "email": usuario.email,
-        "telefone": usuario.telefone,
-        "pontuacao_total": usuario.pontuacao_total,
-        "role": usuario.role,
-        "endereco": endereco,
-    }
+    # Retorna os dados do usuário autenticado
+    # Retorna os dados do usuário autenticado
+    return BaseResponse(
+        success=True,
+        message="Dados do usuário retornados com sucesso",
+        data={
+            "id": usuario.id,
+            "nome": usuario.nome,
+            "email": usuario.email,
+            "telefone": usuario.telefone,
+            "pontuacao_total": usuario.pontuacao_total,
+            "role": usuario.role,
+            "endereco": endereco,
+        }
+    )
