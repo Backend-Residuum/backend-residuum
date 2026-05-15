@@ -235,12 +235,69 @@ Esta entrega está na branch `feature/logica-descarte-pontuacao`, contendo toda 
 
 
 ## Atualizações Backend
-Esta entrega está na branch `feature/validacao-descarte-kaue`, contendo toda a lógica de:
+
+A branch `develop` concentra as funcionalidades atualmente integradas ao backend, incluindo:
+
 ### Validação de descarte
+
 - Validação de quantidade mínima e máxima;
 - Validação de tipos de resíduos aceitos;
 - Bloqueio de descartes inválidos.
 
 ### Transferência de resíduos
+
 - Criação da lógica inicial de transferência;
 - Integração da transferência no fluxo de descarte.
+
+---
+
+# Sprint 2 — Autenticação, Usuários e Mapa ✅⚠️
+
+## Funcionalidades concluídas
+
+- Criação inicial do projeto FastAPI;
+- Endpoint `POST /login` para autenticação;
+- Endpoint `POST /usuarios` para cadastro de usuários;
+- Validação de e-mail;
+- Validação de senha;
+- Estrutura inicial de integração Home + Perfil;
+- Dockerfile para deploy em cloud (GCP).
+
+### Backend e Persistência
+
+- Cadastro de usuários no banco de dados;
+- Login com validação e retorno de acesso/autenticação;
+- Estrutura inicial de persistência com SQLAlchemy e PostgreSQL.
+
+---
+
+# Sprint 3 — Fluxo de Descarte e Validação no Ponto ✅⚠️
+
+## Funcionalidades concluídas
+
+- Endpoint `POST /residuos` para adicionar itens no estoque;
+- Endpoint `POST /descarte` para registro de descarte;
+- Validação de quantidade e tipo de resíduos;
+- Motor de Transferência (RF012);
+- Fluxo de descarte com validação, salvamento e retorno de pontuação;
+- Salvamento de resíduos no estoque;
+- Estrutura inicial de controle de descarte e logística.
+
+---
+
+# Funcionalidades em andamento 🚧
+
+- Endpoint `GET /pontos` para listagem de pontos no mapa;
+- Endpoint Detalhes do Ponto (RF008);
+- Integração e visualização dos pontos no mapa;
+- Integração Home + Perfil.
+- Regras de Pontuação (RF014);
+- Validação GPS (RF010 + RN005);
+- Inventário de resíduos;
+- Integração Descarte → Pontuação;
+- Integração GPS + Descarte.
+
+---
+
+
+
