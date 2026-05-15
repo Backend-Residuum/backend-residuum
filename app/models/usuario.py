@@ -31,6 +31,8 @@ class Usuario(Base):
     # Pontuação acumulada do usuário
     pontuacao_total = Column(Integer, default=0)
 
+    role = Column(String, nullable=False, default="usuario", server_default="usuario")
+
     # Relacionamento com endereço
     endereco_id = Column(Integer, ForeignKey("endereco.id_end"))
     endereco = relationship("Endereco")

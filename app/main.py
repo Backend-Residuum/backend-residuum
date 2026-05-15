@@ -1,17 +1,17 @@
 """
-Aplicação Principal - Residium
+Aplicação Principal - Residuum
 """
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import auth, descarte
-from app.database import engine, Base
-import app.models.descarte # Garante que o modelo de descarte seja carregado
+from app.routes import auth, descarte, endereco
+from app.core.decorators import public
+from app.core.security import require_auth_unless_public
 
-# Cria as tabelas no banco de dados caso não existam
-Base.metadata.create_all(bind=engine)
-
-app = FastAPI(title="Residium API")
+app = FastAPI(
+    title="Residuum API",
+    dependencies=[Depends(require_auth_unless_public)],
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,7 +24,9 @@ app.add_middleware(
 # Registro das rotas
 app.include_router(auth.router, tags=["Autenticação"])
 app.include_router(descarte.router, prefix="/descarte", tags=["Descarte"])
+app.include_router(endereco.router, tags=["Endereço"])
 
 @app.get("/")
+@public
 def root():
-    return {"msg": "Residium API rodando com sucesso!"}
+    return {"msg": "Residuum API rodando com sucesso!"}

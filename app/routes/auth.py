@@ -14,11 +14,13 @@ from app.models.usuario import Usuario
 from app.models.endereco import Endereco
 from app.schemas.usuario import UsuarioCreate
 from app.schemas.auth import LoginRequest, TokenResponse
+
 from app.core.security import criar_token
+from app.core.decorators import public
 from app.dependencies.auth import get_current_user
 
 # Roteador para agrupar as rotas de autenticação
-router = APIRouter(tags=["Auth"])
+router = APIRouter()
 
 # Contexto para hashing de senhas usando bcrypt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -40,32 +42,22 @@ def verificar_senha(senha: str, hash: str):
 # CADASTRO DE USUÁRIO
 # ========================
 @router.post("/usuarios")
+@public
 def criar_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)):
     """
-    Cria um novo usuário no sistema.
+    Cria um novo usuário no sistema apenas com credenciais e dados pessoais.
 
-    Verifica se o email já existe, cria o endereço e o usuário,
-    e salva no banco de dados.
+    O endereço é cadastrado posteriormente via PUT /me/endereco.
     """
-    # Verifica se o email já está cadastrado
     usuario_existente = db.query(Usuario).filter(Usuario.email == usuario.email).first()
     if usuario_existente:
         raise HTTPException(status_code=400, detail="Email já cadastrado")
 
-    # Cria o endereço associado ao usuário
-    novo_endereco = Endereco(**usuario.endereco.dict())
-    db.add(novo_endereco)
-    db.commit()
-    db.refresh(novo_endereco)
-
-    # Cria o usuário com senha hasheada
     novo_usuario = Usuario(
         nome=usuario.nome,
         email=usuario.email,
         telefone=usuario.telefone,
         senha_hash=hash_senha(usuario.senha),
-        endereco_id=novo_endereco.id_end,
-        pontuacao_total=0
     )
 
     db.add(novo_usuario)
@@ -78,6 +70,7 @@ def criar_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)):
 # LOGIN
 # ========================
 @router.post("/login", response_model=TokenResponse)
+@public
 def login(dados: LoginRequest = Body(...), db: Session = Depends(get_db)):
     """
     Realiza o login do usuário.
@@ -121,9 +114,23 @@ def get_me(usuario: Usuario = Depends(get_current_user)):
 
     Requer token válido no cabeçalho Authorization.
     """
+    endereco = None
+    if usuario.endereco is not None:
+        endereco = {
+            "id_end": usuario.endereco.id_end,
+            "rua": usuario.endereco.rua,
+            "bairro": usuario.endereco.bairro,
+            "numero": usuario.endereco.numero,
+            "cep": usuario.endereco.cep,
+            "cidade": usuario.endereco.cidade,
+        }
+
     return {
         "id": usuario.id,
         "nome": usuario.nome,
         "email": usuario.email,
-        "pontuacao_total": usuario.pontuacao_total
+        "telefone": usuario.telefone,
+        "pontuacao_total": usuario.pontuacao_total,
+        "role": usuario.role,
+        "endereco": endereco,
     }

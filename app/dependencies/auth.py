@@ -50,3 +50,21 @@ def get_current_user(
         )
 
     return usuario
+
+
+def require_role(*roles: str):
+    """
+    Fábrica de dependência: garante que o usuário autenticado tenha
+    um dos papéis informados. Use como Depends(require_role("admin")).
+    """
+    allowed = set(roles)
+
+    def _checker(usuario: Usuario = Depends(get_current_user)) -> Usuario:
+        if usuario.role not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Permissão insuficiente",
+            )
+        return usuario
+
+    return _checker

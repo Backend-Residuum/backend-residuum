@@ -1,4 +1,4 @@
-# Este arquivo contém a lógica de cálculo de pontos do sistema Residium.
+# Este arquivo contém a lógica de cálculo de pontos do sistema Residuum.
 
 def calcular_pontos_proporcionais(quantidade_registrada: float, quantidade_confirmada: float) -> int:
     """
