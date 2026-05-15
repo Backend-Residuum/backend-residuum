@@ -8,6 +8,7 @@ from app.schemas.descarte import DescarteCreate, DescarteResponse, DescarteConfi
 from app.services.validacao_service import validar_quantidade, validar_residuo
 from app.services.localizacao_service import validar_localizacao
 from app.services.pontuacao_service import calcular_pontos_proporcionais
+from app.services.transferencia_service import transferir_residuo_para_ponto_coleta # importação de transferencia de residuos 
 
 router = APIRouter()
 
@@ -23,6 +24,15 @@ async def registrar_descarte(
         raise HTTPException(status_code=400, detail="Tipo de resíduo não aceito.")
     if not validar_localizacao(obj_in.usuario_lat, obj_in.usuario_long, obj_in.ponto_lat, obj_in.ponto_long):
         raise HTTPException(status_code=403, detail="Muito longe do ponto de coleta.")
+
+
+# Lógica inicial de transferência
+    transferir_residuo_para_ponto_coleta(
+        obj_in.tipo_residuo,
+        obj_in.quantidade
+)
+
+
 
     novo_descarte = Descarte(
         quantidade=obj_in.quantidade,
@@ -84,3 +94,6 @@ async def confirmar_descarte(id_descarte: int, obj_in: DescarteConfirmar, db: Se
         "pontos_gerados": pontos,
         "pontuacao_total_usuario": usuario.pontuacao_total
     }
+print(
+    transferir_residuo_para_ponto_coleta("papel", 5)
+)

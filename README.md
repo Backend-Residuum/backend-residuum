@@ -232,3 +232,15 @@ Esta entrega está na branch `feature/logica-descarte-pontuacao`, contendo toda 
 - Confirmação de descartes pela cooperativa
 - Cálculo proporcional de pontuação (10 pts/kg)
 - Serviços auxiliares de validação e geolocalização
+
+
+## Atualizações Backend
+Esta entrega está na branch `feature/validacao-descarte-kaue`, contendo toda a lógica de:
+### Validação de descarte
+- Validação de quantidade mínima e máxima;
+- Validação de tipos de resíduos aceitos;
+- Bloqueio de descartes inválidos.
+
+### Transferência de resíduos
+- Criação da lógica inicial de transferência;
+- Integração da transferência no fluxo de descarte.
