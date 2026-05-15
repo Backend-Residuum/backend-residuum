@@ -94,6 +94,3 @@ async def confirmar_descarte(id_descarte: int, obj_in: DescarteConfirmar, db: Se
         "pontos_gerados": pontos,
         "pontuacao_total_usuario": usuario.pontuacao_total
     }
-print(
-    transferir_residuo_para_ponto_coleta("papel", 5)
-)
