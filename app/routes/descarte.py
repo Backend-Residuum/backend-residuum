@@ -19,6 +19,10 @@ async def registrar_descarte(obj_in: DescarteCreate, db: Session = Depends(get_d
     if not validar_localizacao(obj_in.usuario_lat, obj_in.usuario_long, obj_in.ponto_lat, obj_in.ponto_long):
         raise HTTPException(status_code=403, detail="Muito longe do ponto de coleta.")
 
+    usuario = db.query(Usuario).filter(Usuario.id == obj_in.usuario_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
     novo_descarte = Descarte(
         quantidade=obj_in.quantidade,
         tipo_residuo=obj_in.tipo_residuo,
