@@ -58,7 +58,6 @@ def criar_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)):
         email=usuario.email,
         telefone=usuario.telefone,
         senha_hash=hash_senha(usuario.senha),
-        pontuacao_total=0,
     )
 
     db.add(novo_usuario)

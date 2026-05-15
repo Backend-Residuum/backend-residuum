@@ -12,3 +12,7 @@ class Descarte(Base):
     status = Column(String(20), default='pendente')
     quantidade_confirmada = Column(Float, nullable=True)
     usuario_id = Column(Integer, nullable=True)
+    usuario_lat = Column(Float, nullable=True)
+    usuario_long = Column(Float, nullable=True)
+    ponto_lat = Column(Float, nullable=True)
+    ponto_long = Column(Float, nullable=True)
