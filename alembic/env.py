@@ -22,6 +22,8 @@ import app.models.endereco  # noqa: F401, E402
 import app.models.descarte # noqa: F401, E402
 import app.models.estoque # noqa: F401, E402
 import app.models.pontuacao # noqa: F401, E402
+import app.models.ponto_coleta # noqa: F401, E402
+import app.models.qrcode_token # noqa: F401, E402
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

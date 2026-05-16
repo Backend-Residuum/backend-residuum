@@ -8,8 +8,8 @@ class DescarteCreate(BaseModel):
     observacao: Optional[str] = "Descarte via APP"
     usuario_lat: float
     usuario_long: float
-    ponto_lat: float
-    ponto_long: float
+    ponto_coleta_id: int
+    qrcode_token: Optional[str] = None  # Token QR Code para validação presencial (opcional)
 
 class DescarteConfirmar(BaseModel):
     quantidade_confirmada: float
