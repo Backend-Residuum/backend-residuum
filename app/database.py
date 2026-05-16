@@ -16,6 +16,12 @@ load_dotenv()
 # URL do banco de dados obtida das variáveis de ambiente
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL não encontrada. Crie um arquivo .env na raiz do projeto "
+        "com DATABASE_URL=postgresql://usuario:senha@host:porta/banco"
+    )
+
 # Cria o engine do SQLAlchemy com a URL do banco
 engine = create_engine(
     DATABASE_URL,

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, String, DateTime
+from sqlalchemy import Column, Integer, Float, String, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -16,3 +16,9 @@ class Descarte(Base):
     usuario_long = Column(Float, nullable=True)
     ponto_lat = Column(Float, nullable=True)
     ponto_long = Column(Float, nullable=True)
+    # Referência ao ponto de coleta
+    ponto_coleta_id = Column(Integer, ForeignKey("ponto_coleta.id"), nullable=True)
+    # Token QR Code usado (se validação presencial)
+    qrcode_token_id = Column(Integer, ForeignKey("qrcode_token.id"), nullable=True)
+    # Item do inventário do usuário que originou o descarte, quando aplicável
+    inventario_usuario_id = Column(Integer, ForeignKey("inventario_usuario.id"), nullable=True)

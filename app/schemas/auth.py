@@ -20,7 +20,8 @@ class TokenResponse(BaseModel):
     """
     Modelo para resposta de login bem-sucedido.
 
-    Retorna o token de acesso e seu tipo.
+    Retorna o token de acesso, seu tipo e informações do usuário.
     """
     access_token: str
     token_type: str
+    usuario_id: int = None
