@@ -2,7 +2,13 @@
 
 ## Visão Geral
 
-Este repositório contém o **módulo de inteligência e logística** da plataforma **Residuum** — sistema responsável pelo registro, validação e confirmação de descartes de resíduos recicláveis, bem como pela geração automática de pontuação para os usuários. A API foi desenvolvida com foco em regras de negócio claras: validação de localização, verificação do tipo de resíduo aceito e cálculo proporcional de pontos com base no peso real confirmado pela cooperativa.
+Este repositório contém o **módulo de inteligência e logística** da plataforma **Residuum** — sistema responsável pelo registro, validação e confirmação de descartes de resíduos recicláveis, bem como pela geração automática de pontuação para os usuários. A API foi desenvolvida com foco em regras de negócio claras: validação de localização, verificação do tipo de resíduo aceito, confirmação pela cooperativa antes da pontuação e cálculo proporcional de pontos com base no peso real confirmado.
+
+Agora o sistema também inclui:
+- pontos de coleta geolocalizados com raio de operação
+- validação alternativa presencial via QR Code
+- registro de inventário de resíduos por ponto de coleta
+- vínculo de descartes a pontos e tokens QR Code
 
 ---
 
@@ -52,6 +58,18 @@ Ou, se o arquivo `requirements.txt` já estiver presente:
 ```bash
 pip install -r requirements.txt
 ```
+
+---
+
+## Funcionalidades implementadas
+
+- Registro de descartes com validação de tipo e quantidade de resíduo
+- Geofencing de 1km para confirmação de proximidade do usuário ao ponto de coleta
+- Ponto de coleta com inventário em JSON atualizado automaticamente
+- Validação alternativa por QR Code válido e não expirado
+- Cadastro de pontos de coleta e geração de tokens QR Code administrativamente
+- Confirmação de descarte pela cooperativa para liberar pontuação proporcional
+- Cálculo de pontuação: 10 pontos por kg confirmado
 
 ---
 
@@ -158,13 +176,15 @@ POST /descarte/
   "quantidade": 5.0,
   "tipo_residuo": "garrafa pet",
   "observacao": "Sacos separados por cor",
-  "usuario_id": 1,
   "usuario_lat": -23.5505,
   "usuario_long": -46.6333,
-  "ponto_lat": -23.5510,
-  "ponto_long": -46.6340
+  "ponto_coleta_id": 1,
+  "qrcode_token": null
 }
 ```
+
+> Se desejar usar validação presencial via QR Code, forneça o token em `qrcode_token`.
+> O `usuario` é identificado pelo token JWT, não pelo corpo da requisição.
 
 **Resposta esperada:** descarte salvo com `status: "pendente"`.
 
