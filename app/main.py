@@ -5,7 +5,7 @@ Aplicação Principal - Residuum
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from app.routes import auth, descarte, endereco, ponto_coleta
+from app.routes import auth, descarte, endereco, ponto_coleta, inventario_usuario
 from app.core.decorators import public
 from app.core.security import require_auth_unless_public
 
@@ -27,6 +27,7 @@ app.include_router(auth.router, tags=["Autenticação"])
 app.include_router(descarte.router, prefix="/descarte", tags=["Descarte"])
 app.include_router(endereco.router, tags=["Endereço"])
 app.include_router(ponto_coleta.router, tags=["Ponto de Coleta e QR Code"])
+app.include_router(inventario_usuario.router)
 
 @app.get("/")
 @public

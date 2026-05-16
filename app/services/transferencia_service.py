@@ -1,13 +1,5 @@
-"""
-Serviço de Transferência de Inventário
-
-RF012: Motor de Transferência de Inventário
-Implementa a lógica de transferência de resíduos para o ponto de coleta
-e atualização do inventário no banco de dados.
-"""
-
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy.orm.attributes import flag_modified
 from app.models.ponto_coleta import PontoColeta
 from fastapi import HTTPException
 import json
@@ -19,61 +11,47 @@ def transferir_residuo_para_ponto_coleta(
     ponto_coleta_id: int,
     db: Session
 ) -> dict:
-    """
-    Transfere a quantidade de resíduos registrada para o inventário do ponto de coleta.
-    
-    RF012: Motor de Transferência de Inventário
-    - Verifica se o ponto de coleta existe
-    - Registra a entrada da quantidade de resíduos no inventário
-    - Atualiza o campo inventario (JSON) do ponto de coleta
-    
-    Args:
-        tipo_residuo: Tipo de resíduo (ex: "garrafa pet")
-        quantidade: Quantidade em kg
-        ponto_coleta_id: ID do ponto de coleta
-        db: Sessão do banco de dados
-    
-    Returns:
-        Dicionário com status da transferência
-    
-    Raises:
-        HTTPException: Se o ponto de coleta não existir
-    """
-    # Validações
     if not tipo_residuo or quantidade <= 0:
-        raise HTTPException(status_code=400, detail="Tipo de resíduo ou quantidade inválida.")
-    
-    # Busca o ponto de coleta
+        raise HTTPException(
+            status_code=400,
+            detail="Tipo de resíduo ou quantidade inválida."
+        )
+
     ponto = db.query(PontoColeta).filter(PontoColeta.id == ponto_coleta_id).first()
-    
+
     if not ponto:
-        raise HTTPException(status_code=404, detail="Ponto de coleta não encontrado.")
-    
-    # Atualiza o inventário (JSON)
-    inventario = ponto.inventario if ponto.inventario else {}
-    
-    # Se for dict, converte para dict se for string JSON
-    if isinstance(inventario, str):
+        raise HTTPException(
+            status_code=404,
+            detail="Ponto de coleta não encontrado."
+        )
+
+    inventario_atual = ponto.inventario or {}
+
+    if isinstance(inventario_atual, str):
         try:
-            inventario = json.loads(inventario)
-        except:
-            inventario = {}
-    
-    # Soma à quantidade existente
-    if tipo_residuo in inventario:
-        inventario[tipo_residuo] += quantidade
-    else:
-        inventario[tipo_residuo] = quantidade
-    
-    # Atualiza o ponto
-    ponto.inventario = inventario
+            inventario_atual = json.loads(inventario_atual)
+        except Exception:
+            inventario_atual = {}
+
+    # cria uma nova cópia para o SQLAlchemy perceber a alteração
+    novo_inventario = dict(inventario_atual)
+
+    quantidade_atual = float(novo_inventario.get(tipo_residuo, 0))
+    novo_inventario[tipo_residuo] = quantidade_atual + float(quantidade)
+
+    ponto.inventario = novo_inventario
+
+    # força o SQLAlchemy a reconhecer alteração no campo JSON
+    flag_modified(ponto, "inventario")
+
     db.commit()
-    
+    db.refresh(ponto)
+
     return {
         "tipo_residuo": tipo_residuo,
         "quantidade_transferida": quantidade,
-        "novo_estoque": inventario.get(tipo_residuo, 0),
+        "novo_estoque": novo_inventario.get(tipo_residuo, 0),
         "ponto_coleta_id": ponto_coleta_id,
+        "inventario_atualizado": novo_inventario,
         "status": "transferencia_registrada"
     }
-

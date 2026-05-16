@@ -6,11 +6,13 @@ from app.models.descarte import Descarte
 from app.models.usuario import Usuario
 from app.models.ponto_coleta import PontoColeta
 from app.models.qrcode_token import QRCodeToken
+from app.models.inventario_usuario import InventarioUsuario
 from app.schemas.descarte import DescarteCreate, DescarteResponse, DescarteConfirmar
 from app.services.validacao_service import validar_quantidade, validar_residuo
 from app.services.localizacao_service import validar_localizacao
 from app.services.pontuacao_service import calcular_pontos_proporcionais
 from app.services.transferencia_service import transferir_residuo_para_ponto_coleta
+from app.services.serializacao_service import serializar_descarte
 from datetime import datetime
 
 router = APIRouter()
@@ -76,12 +78,12 @@ async def registrar_descarte(
             raise HTTPException(status_code=403, detail="Muito longe do ponto de coleta. Distância máxima: 1km.")
 
     # RF012: Transferência de inventário (ainda em status 'pendente')
-    transferir_residuo_para_ponto_coleta(
-        obj_in.tipo_residuo,
-        obj_in.quantidade,
-        obj_in.ponto_coleta_id,
-        db
-    )
+    # transferir_residuo_para_ponto_coleta(
+    #   obj_in.tipo_residuo,
+    #   obj_in.quantidade,
+    #    obj_in.ponto_coleta_id,
+    #    db
+    #)
 
     # RF014: Criar descarte com status 'pendente' (sem gerar pontos ainda)
     novo_descarte = Descarte(
@@ -102,7 +104,7 @@ async def registrar_descarte(
     db.refresh(novo_descarte)
 
     if validacao_qrcode:
-        qr_token.descarte_id = novo_descarte.id
+        qr_token.descarte_id = novo_descarte.id_descarte
         qr_token.ativo = 0
         db.commit()
         db.refresh(qr_token)
@@ -114,14 +116,21 @@ async def ver_historico(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user),
 ):
-    return db.query(Descarte).filter(Descarte.usuario_id == usuario.id).all()
+    descartes = (
+        db.query(Descarte)
+        .filter(Descarte.usuario_id == usuario.id)
+        .order_by(Descarte.data_desc.desc())
+        .all()
+    )
+    return [serializar_descarte(descarte, db) for descarte in descartes]
 
 @router.get("/historico/geral")
 async def ver_historico_geral(
     db: Session = Depends(get_db),
     _: Usuario = Depends(require_role("admin")),
 ):
-    return db.query(Descarte).order_by(Descarte.data_desc.desc()).all()
+    descartes = db.query(Descarte).order_by(Descarte.data_desc.desc()).all()
+    return [serializar_descarte(descarte, db) for descarte in descartes]
 
 @router.get("/pendentes")
 async def listar_descartes_pendentes(
@@ -129,7 +138,13 @@ async def listar_descartes_pendentes(
     _: Usuario = Depends(require_role("admin")),
 ):
     """Lista todos os descartes com status 'pendente' para confirmação pela cooperativa."""
-    return db.query(Descarte).filter(Descarte.status == 'pendente').all()
+    descartes = (
+        db.query(Descarte)
+        .filter(Descarte.status == 'pendente')
+        .order_by(Descarte.data_desc.desc())
+        .all()
+    )
+    return [serializar_descarte(descarte, db) for descarte in descartes]
 
 @router.put("/{id_descarte}/confirmar")
 async def confirmar_descarte(
@@ -160,8 +175,53 @@ async def confirmar_descarte(
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário do descarte não encontrado.")
 
+    if obj_in.quantidade_confirmada <= 0:
+        raise HTTPException(status_code=400, detail="Quantidade confirmada deve ser maior que zero.")
+
+    if obj_in.quantidade_confirmada > descarte.quantidade:
+        raise HTTPException(
+            status_code=400,
+            detail="Quantidade confirmada não pode ser maior que a quantidade declarada no descarte."
+        )
+
     # Atualiza a pontuação do usuário
     usuario.pontuacao_total = (usuario.pontuacao_total or 0) + pontos
+
+    # Se o descarte veio do inventário do usuário, baixa a quantidade confirmada
+    # e libera a quantidade que estava reservada no item.
+    if descarte.inventario_usuario_id:
+        item_inventario = db.query(InventarioUsuario).filter(
+            InventarioUsuario.id == descarte.inventario_usuario_id,
+            InventarioUsuario.usuario_id == descarte.usuario_id
+        ).first()
+
+        if item_inventario:
+            quantidade_reservada_atual = float(item_inventario.quantidade_reservada or 0)
+            quantidade_total_atual = float(item_inventario.quantidade or 0)
+
+            item_inventario.quantidade_reservada = max(
+                quantidade_reservada_atual - float(descarte.quantidade),
+                0
+            )
+            item_inventario.quantidade = max(
+                quantidade_total_atual - float(obj_in.quantidade_confirmada),
+                0
+            )
+
+            if item_inventario.quantidade <= 0 and item_inventario.quantidade_reservada <= 0:
+                item_inventario.status = "finalizado"
+            elif item_inventario.quantidade - item_inventario.quantidade_reservada <= 0:
+                item_inventario.status = "em_transferencia"
+            else:
+                item_inventario.status = "disponivel"
+
+    if descarte.ponto_coleta_id:
+        transferir_residuo_para_ponto_coleta(
+            descarte.tipo_residuo,
+            obj_in.quantidade_confirmada,
+            descarte.ponto_coleta_id,
+            db
+        )
 
     db.commit()
     db.refresh(descarte)

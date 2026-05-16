@@ -20,3 +20,5 @@ class Descarte(Base):
     ponto_coleta_id = Column(Integer, ForeignKey("ponto_coleta.id"), nullable=True)
     # Token QR Code usado (se validação presencial)
     qrcode_token_id = Column(Integer, ForeignKey("qrcode_token.id"), nullable=True)
+    # Item do inventário do usuário que originou o descarte, quando aplicável
+    inventario_usuario_id = Column(Integer, ForeignKey("inventario_usuario.id"), nullable=True)
