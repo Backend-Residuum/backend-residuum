@@ -40,5 +40,5 @@ class QRCodeToken(Base):
 
     # Relationships
     ponto_coleta = relationship("PontoColeta", back_populates="qrcode_tokens")
-    descarte = relationship("Descarte", back_populates="qrcode_token", uselist=False)
+    descarte = relationship("Descarte", back_populates="qrcode_token", uselist=False, foreign_keys="[Descarte.qrcode_token_id]")
 
