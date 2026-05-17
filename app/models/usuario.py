@@ -33,6 +33,9 @@ class Usuario(Base):
 
     role = Column(String, nullable=False, default="usuario", server_default="usuario")
 
-    # Relacionamento com endereço
+    # Relacionamento com endereço e outras tabelas
     endereco_id = Column(Integer, ForeignKey("endereco.id_end"))
     endereco = relationship("Endereco")
+    pontuacoes = relationship("Pontuacao", back_populates="usuario")
+    descartes = relationship("Descarte", back_populates="usuario")
+    inventarios = relationship("InventarioUsuario", back_populates="usuario")
