@@ -21,12 +21,12 @@ class Usuario(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     # Dados pessoais
-    nome = Column(String)
-    email = Column(String, unique=True)  # Email único para login
-    telefone = Column(String)
+    nome = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)  # Email único para login
+    telefone = Column(String, nullable=False)
 
     # Credenciais de segurança
-    senha_hash = Column(String)  # Senha hasheada com bcrypt
+    senha_hash = Column(String, nullable=False)  # Senha hasheada com bcrypt
 
     # Pontuação acumulada do usuário
     pontuacao_total = Column(Integer, default=0)
