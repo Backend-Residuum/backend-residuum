@@ -7,6 +7,7 @@ e dados operacionais usados na visualização do mapa/detalhes.
 """
 
 from sqlalchemy import Column, Integer, String, Float, DateTime, JSON
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -49,3 +50,7 @@ class PontoColeta(Base):
 
     # Compatibilidade com versões anteriores: 1 = ativo, 0 = inativo
     ativo = Column(Integer, default=1)
+
+    # Relationships
+    descartes = relationship("Descarte", back_populates="ponto_coleta")
+    qrcode_tokens = relationship("QRCodeToken", back_populates="ponto_coleta")

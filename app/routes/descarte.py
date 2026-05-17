@@ -7,6 +7,7 @@ from app.models.usuario import Usuario
 from app.models.ponto_coleta import PontoColeta
 from app.models.qrcode_token import QRCodeToken
 from app.models.inventario_usuario import InventarioUsuario
+from app.models.pontuacao import Pontuacao
 from app.schemas.descarte import DescarteCreate, DescarteResponse, DescarteConfirmar
 from app.services.validacao_service import validar_quantidade, validar_residuo
 from app.services.localizacao_service import validar_localizacao
@@ -186,6 +187,10 @@ async def confirmar_descarte(
 
     # Atualiza a pontuação do usuário
     usuario.pontuacao_total = (usuario.pontuacao_total or 0) + pontos
+
+    if pontos > 0:
+        nova_pontuacao = Pontuacao(pontos=pontos, usuario_id=usuario.id)
+        db.add(nova_pontuacao)
 
     # Se o descarte veio do inventário do usuário, baixa a quantidade confirmada
     # e libera a quantidade que estava reservada no item.

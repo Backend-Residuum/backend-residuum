@@ -6,6 +6,7 @@ Armazena tokens únicos gerados pelos pontos de coleta para validação presenci
 """
 
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -36,3 +37,8 @@ class QRCodeToken(Base):
 
     # Referência ao descarte que usou este token (se houver)
     descarte_id = Column(Integer, ForeignKey("descarte.id_descarte"), nullable=True)
+
+    # Relationships
+    ponto_coleta = relationship("PontoColeta", back_populates="qrcode_tokens")
+    descarte = relationship("Descarte", back_populates="qrcode_token", uselist=False)
+

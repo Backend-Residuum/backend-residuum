@@ -36,4 +36,5 @@ class InventarioUsuario(Base):
     data_cadastro = Column(DateTime(timezone=True), server_default=func.now())
     data_atualizacao = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    usuario = relationship("Usuario")
+    usuario = relationship("Usuario", back_populates="inventarios")
+    descartes = relationship("Descarte", back_populates="inventario_usuario")
