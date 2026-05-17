@@ -22,7 +22,7 @@ def validar_quantidade(quantidade: float) -> bool:
     - Não pode ser negativa.
     - Definimos um limite 'absurdo' de 1000kg para o MVP.
     """
-    if quantidade <= QUANTIDADE_MINIMA:
+    if quantidade < QUANTIDADE_MINIMA:
         return False
     
     if quantidade > QUANTIDADE_MAXIMA: # Exemplo de valor 'absurdo' para controle manual
