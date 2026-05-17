@@ -29,7 +29,7 @@ class Usuario(Base):
     senha_hash = Column(String, nullable=False)  # Senha hasheada com bcrypt
 
     # Pontuação acumulada do usuário
-    pontuacao_total = Column(Integer, default=0)
+    pontuacao_total = Column(Integer, default=0, server_default="0")
 
     role = Column(String, nullable=False, default="usuario", server_default="usuario")
 
