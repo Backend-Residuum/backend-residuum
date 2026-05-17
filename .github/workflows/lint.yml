@@ -1,0 +1,44 @@
+name: Lint and Format
+
+on:
+  push:
+    branches: ["main", "master", "develop"]
+  pull_request:
+    branches: ["main", "master", "develop"]
+
+jobs:
+  lint:
+    name: Check Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13" # Versão utilizada no seu ambiente
+
+      - name: Install Linting Tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black
+
+      - name: Check code formatting with Black
+        run: |
+          # Verifica se o código está formatado no padrão (sem reescrever)
+          # Se não estiver, o CI falha e aponta o erro
+          black --check app/
+
+      - name: Lint with Flake8 (Erros Críticos)
+        run: |
+          # Para a pipeline se houver erros de sintaxe (E9), variáveis não declaradas (F82) 
+          # ou problemas que quebram o código logo de cara.
+          flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Lint with Flake8 (Avisos de Estilo)
+        run: |
+          # O exit-zero faz com que problemas de espaço ou linhas longas 
+          # gerem um alerta visual, mas não bloqueiem o pull request
+          flake8 app/ --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
