@@ -26,6 +26,6 @@ class Descarte(Base):
     # Relationships
     usuario = relationship("Usuario", back_populates="descartes")
     ponto_coleta = relationship("PontoColeta", back_populates="descartes")
-    qrcode_token = relationship("QRCodeToken", back_populates="descarte")
+    qrcode_token = relationship("QRCodeToken", back_populates="descarte", foreign_keys=[qrcode_token_id])
     inventario_usuario = relationship("InventarioUsuario", back_populates="descartes")
     inventario_usuario_id = Column(Integer, ForeignKey("inventario_usuario.id"), nullable=True)
