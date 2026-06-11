@@ -5,6 +5,7 @@ Gerencia os pontos de coleta e tokens para validação presencial via QR Code.
 """
 
 from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 import uuid
 from datetime import datetime, timedelta
@@ -56,6 +57,9 @@ def _status_calculado(ponto: PontoColeta) -> str:
     total = _total_inventario(ponto.inventario)
     if ponto.capacidade_maxima and ponto.capacidade_maxima > 0 and total >= float(ponto.capacidade_maxima):
         return "cheio"
+    
+    if ponto.data_final and ponto.data_final.replace(tzinfo=None) < datetime.utcnow():
+        return "inativo"
 
     return ponto.status or "ativo"
 
@@ -85,6 +89,7 @@ def _serializar_ponto(ponto: PontoColeta, distancia_km: Optional[float] = None) 
         "ativo": ponto.ativo,
         "data_criacao": ponto.data_criacao,
         "data_atualizacao": ponto.data_atualizacao,
+        "data_final": ponto.data_final,
     }
 
 
@@ -110,7 +115,8 @@ async def criar_ponto_coleta(
         horario_funcionamento=obj_in.horario_funcionamento,
         status=status,
         ativo=0 if status == "inativo" else 1,
-        inventario={}
+        inventario={},
+        data_final=obj_in.data_final
     )
     db.add(novo_ponto)
     db.commit()
@@ -156,6 +162,12 @@ async def listar_pontos_coleta(
     query = db.query(PontoColeta)
     if not incluir_inativos:
         query = query.filter(PontoColeta.ativo == 1)
+        query = query.filter(
+            or_(
+                PontoColeta.data_final.is_(None),
+                PontoColeta.data_final > datetime.utcnow()
+            )
+        )
 
     pontos = query.all()
     tipo_normalizado = tipo_residuo.strip().lower() if tipo_residuo else None
@@ -243,7 +255,8 @@ async def atualizar_ponto_coleta(
             ponto.status = "inativo"
         elif ponto.status == "inativo":
             ponto.status = "ativo"
-
+    if obj_in.data_final is not None:
+        ponto.data_final = obj_in.data_final
     db.commit()
     db.refresh(ponto)
     return _serializar_ponto(ponto)

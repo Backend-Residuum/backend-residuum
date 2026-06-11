@@ -40,7 +40,10 @@ class PontoColeta(Base):
     tipos_residuos_aceitos = Column(JSON, default=list)  # ex.: ["plastico", "papel"]
     horario_funcionamento = Column(String(255), nullable=True)
     status = Column(String(20), default="ativo")  # ativo, cheio, inativo
-
+    
+    #Data final para validação de ponto de coleta temporário
+    data_final = Column(DateTime(timezone=True), nullable=True)
+    
     # Inventário de resíduos (tipo_residuo -> quantidade)
     inventario = Column(JSON, default=dict)
 
@@ -54,3 +57,5 @@ class PontoColeta(Base):
     # Relationships
     descartes = relationship("Descarte", back_populates="ponto_coleta")
     qrcode_tokens = relationship("QRCodeToken", back_populates="ponto_coleta")
+
+    
