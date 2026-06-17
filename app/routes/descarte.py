@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies.auth import get_current_user, require_role
@@ -14,6 +14,7 @@ from app.services.localizacao_service import validar_localizacao
 from app.services.pontuacao_service import calcular_pontos_proporcionais
 from app.services.transferencia_service import transferir_residuo_para_ponto_coleta
 from app.services.serializacao_service import serializar_descarte
+from app.services.notificacao_service import verificar_capacidade_e_notificar
 from datetime import datetime
 
 router = APIRouter()
@@ -230,7 +231,8 @@ async def confirmar_descarte(
 
     db.commit()
     db.refresh(descarte)
-
+    if descarte.ponto_coleta:
+        verificar_capacidade_e_notificar(db, descarte.ponto_coleta)
     return {
         "mensagem": "Descarte confirmado com sucesso!",
         "id_descarte": descarte.id_descarte,
