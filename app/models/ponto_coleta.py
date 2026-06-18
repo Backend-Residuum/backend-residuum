@@ -47,7 +47,7 @@ class PontoColeta(Base):
     # Controle de criação e atualização
     data_criacao = Column(DateTime(timezone=True), server_default=func.now())
     data_atualizacao = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
-
+    data_final = Column(DateTime(timezone=True), nullable=True)
     # Compatibilidade com versões anteriores: 1 = ativo, 0 = inativo
     ativo = Column(Integer, default=1)
 
