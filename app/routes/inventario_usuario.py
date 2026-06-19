@@ -25,6 +25,7 @@ from app.schemas.inventario_usuario import (
 from app.schemas.descarte import DescarteResponse
 from app.services.validacao_service import validar_quantidade, validar_residuo
 from app.services.localizacao_service import validar_localizacao
+from app.services.ponto_coleta_service import validar_ponto_disponivel_para_descarte
 
 router = APIRouter(prefix="/me/inventario", tags=["Inventário do Usuário"])
 
@@ -233,6 +234,7 @@ def descartar_item_inventario(
     ponto = db.query(PontoColeta).filter(PontoColeta.id == obj_in.ponto_coleta_id).first()
     if not ponto:
         raise HTTPException(status_code=404, detail="Ponto de coleta não encontrado.")
+    validar_ponto_disponivel_para_descarte(ponto)
 
     validacao_qrcode = False
     qr_token = None

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.dependencies.auth import get_current_user, require_role
+from app.dependencies.auth import get_current_user, require_role, validar_acesso_operacional_ao_ponto
 from app.models.descarte import Descarte
 from app.models.usuario import Usuario
 from app.models.ponto_coleta import PontoColeta
@@ -15,6 +15,7 @@ from app.services.pontuacao_service import calcular_pontos_proporcionais
 from app.services.transferencia_service import transferir_residuo_para_ponto_coleta
 from app.services.serializacao_service import serializar_descarte
 from app.services.notificacao_service import verificar_capacidade_e_notificar
+from app.services.ponto_coleta_service import validar_ponto_disponivel_para_descarte
 from datetime import datetime
 
 router = APIRouter()
@@ -53,6 +54,7 @@ async def registrar_descarte(
     ponto = db.query(PontoColeta).filter(PontoColeta.id == obj_in.ponto_coleta_id).first()
     if not ponto:
         raise HTTPException(status_code=404, detail="Ponto de coleta não encontrado.")
+    validar_ponto_disponivel_para_descarte(ponto)
 
     # Validação de geofencing (RF010 + RN005)
     # Se não tiver QR Code, valida GPS
@@ -137,15 +139,17 @@ async def ver_historico_geral(
 @router.get("/pendentes")
 async def listar_descartes_pendentes(
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_role("admin")),
+    usuario: Usuario = Depends(require_role("admin", "cooperativa")),
 ):
     """Lista todos os descartes com status 'pendente' para confirmação pela cooperativa."""
-    descartes = (
-        db.query(Descarte)
-        .filter(Descarte.status == 'pendente')
-        .order_by(Descarte.data_desc.desc())
-        .all()
-    )
+    query = db.query(Descarte).filter(Descarte.status == 'pendente')
+
+    if usuario.role == "cooperativa":
+        query = query.join(PontoColeta, Descarte.ponto_coleta_id == PontoColeta.id).filter(
+            PontoColeta.cooperativa_id == usuario.id
+        )
+
+    descartes = query.order_by(Descarte.data_desc.desc()).all()
     return [serializar_descarte(descarte, db) for descarte in descartes]
 
 @router.put("/{id_descarte}/confirmar")
@@ -153,17 +157,22 @@ async def confirmar_descarte(
     id_descarte: int,
     obj_in: DescarteConfirmar,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_role("admin"))
+    usuario_operador: Usuario = Depends(require_role("admin", "cooperativa"))
 ):
     """
     Confirma o descarte e calcula pontos (RF014).
     
-    Apenas administradores (cooperativa) podem confirmar.
+    Apenas admin ou a cooperativa responsável pelo ponto podem confirmar.
     O sistema calcula 10 pontos por cada 1kg confirmado.
     """
     descarte = db.query(Descarte).filter(Descarte.id_descarte == id_descarte).first()
     if not descarte:
         raise HTTPException(status_code=404, detail="Descarte não encontrado.")
+    if descarte.ponto_coleta_id is None:
+        raise HTTPException(status_code=400, detail="Descarte sem ponto de coleta vinculado.")
+
+    validar_acesso_operacional_ao_ponto(usuario_operador, descarte.ponto_coleta)
+
     if descarte.status == 'confirmado':
         raise HTTPException(status_code=400, detail="Descarte já foi confirmado.")
 
