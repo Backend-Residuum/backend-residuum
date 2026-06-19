@@ -172,6 +172,14 @@ def alterar_role(
             detail="Você não pode remover seu próprio role de admin",
         )
 
+    if usuario.role == "cooperativa" and payload.role != "cooperativa":
+        possui_pontos_vinculados = db.query(PontoColeta.id).filter(PontoColeta.cooperativa_id == usuario.id).first()
+        if possui_pontos_vinculados:
+            raise HTTPException(
+                status_code=400,
+                detail="Reatribua os pontos de coleta desta cooperativa antes de alterar o role.",
+            )
+
     role_anterior = usuario.role
     usuario.role = payload.role
     registrar_acao(
@@ -245,6 +253,14 @@ def remover_usuario(
     usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    if usuario.role == "cooperativa":
+        possui_pontos_vinculados = db.query(PontoColeta.id).filter(PontoColeta.cooperativa_id == usuario.id).first()
+        if possui_pontos_vinculados:
+            raise HTTPException(
+                status_code=400,
+                detail="Reatribua os pontos de coleta desta cooperativa antes de remover o usuário.",
+            )
 
     registrar_acao(
         db,

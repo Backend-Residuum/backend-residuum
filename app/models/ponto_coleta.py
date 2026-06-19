@@ -6,7 +6,7 @@ Armazena informações dos pontos de coleta de resíduos com localização, inve
 e dados operacionais usados na visualização do mapa/detalhes.
 """
 
-from sqlalchemy import Column, Integer, String, Float, DateTime, JSON
+from sqlalchemy import Column, Integer, String, Float, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -40,6 +40,7 @@ class PontoColeta(Base):
     tipos_residuos_aceitos = Column(JSON, default=list)  # ex.: ["plastico", "papel"]
     horario_funcionamento = Column(String(255), nullable=True)
     status = Column(String(20), default="ativo")  # ativo, cheio, inativo
+    cooperativa_id = Column(Integer, ForeignKey("usuario.id"), nullable=True, index=True)
 
     # Inventário de resíduos (tipo_residuo -> quantidade)
     inventario = Column(JSON, default=dict)
@@ -52,5 +53,6 @@ class PontoColeta(Base):
     ativo = Column(Integer, default=1)
 
     # Relationships
+    cooperativa_responsavel = relationship("Usuario", foreign_keys=[cooperativa_id])
     descartes = relationship("Descarte", back_populates="ponto_coleta")
     qrcode_tokens = relationship("QRCodeToken", back_populates="ponto_coleta")
