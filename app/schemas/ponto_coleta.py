@@ -5,7 +5,7 @@ Define os modelos Pydantic para criação, atualização e resposta de pontos de
 """
 
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, time
 from typing import Optional, Dict, Any, List
 
 
@@ -21,7 +21,21 @@ TIPOS_RESIDUOS_EXEMPLO = [
     "baterias",
 ]
 
+class HorarioBase(BaseModel):
+    dia_semana: int = Field(..., ge=0, le=6, description="0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sáb")
+    hora_abertura: time
+    hora_fechamento: time
 
+class HorarioCreate(HorarioBase):
+    pass
+
+class HorarioResponse(HorarioBase):
+    id: int
+    ponto_coleta_id: int
+
+    class Config:
+        from_attributes = True
+        
 class PontoColetaCreate(BaseModel):
     """Modelo para criação de um novo ponto de coleta."""
     nome: str
@@ -61,7 +75,6 @@ class PontoColetaResponse(BaseModel):
     raio_operacao: float
     capacidade_maxima: Optional[float] = None
     tipos_residuos_aceitos: List[str] = []
-    horario_funcionamento: Optional[str] = None
     status: str = "ativo"
     status_calculado: Optional[str] = None
     cooperativa_id: Optional[int] = None
@@ -73,5 +86,6 @@ class PontoColetaResponse(BaseModel):
     data_criacao: datetime
     data_atualizacao: datetime
     data_final: Optional[datetime] = None
+    horarios: List[HorarioResponse] = []
     class Config:
         from_attributes = True

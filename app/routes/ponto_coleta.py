@@ -7,6 +7,7 @@ Gerencia os pontos de coleta e tokens para validação presencial via QR Code.
 from typing import Optional, List, Dict, Any
 import uuid
 from datetime import datetime, timedelta
+<<<<<<< HEAD
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy import or_
@@ -17,13 +18,18 @@ from app.core.exceptions import (
     raise_conflict,
     raise_not_found,
 )
+=======
+from typing import List
+>>>>>>> c72a182ed707b5d47e448c468da1f9093deab4aa
 from app.database import get_db
 from app.dependencies.auth import get_current_user, require_role, validar_acesso_operacional_ao_ponto
 from app.models.usuario import Usuario
+from app.models.ponto_coleta import HorarioDisponibilidade
 from app.models.ponto_coleta import PontoColeta
 from app.models.qrcode_token import QRCodeToken
 from app.schemas.ponto_coleta import PontoColetaCreate, PontoColetaResponse, PontoColetaUpdate
 from app.schemas.qrcode_token import QRCodeTokenCreate, QRCodeTokenResponse, QRCodeTokenValidate
+<<<<<<< HEAD
 from app.services.ponto_coleta_service import (
     status_ponto_coleta,
     total_inventario_ponto,
@@ -31,6 +37,9 @@ from app.services.ponto_coleta_service import (
     validar_ponto_disponivel_para_descarte,
 )
 from app.services.localizacao_service import calcular_distancia_haversine
+=======
+from app.schemas.ponto_coleta import HorarioCreate, HorarioResponse
+>>>>>>> c72a182ed707b5d47e448c468da1f9093deab4aa
 
 router = APIRouter()
 
@@ -89,6 +98,9 @@ def _serializar_ponto(ponto: PontoColeta, distancia_km: Optional[float] = None) 
         "data_criacao": ponto.data_criacao,
         "data_atualizacao": ponto.data_atualizacao,
         "data_final": ponto.data_final,
+        "horario_funcionamento": ponto.horario_funcionamento,
+        "horarios": ponto.horarios if hasattr(ponto, 'horarios') else [], # <--- ADICIONAR AQUI
+        "status": ponto.status or "ativo",
     }
 
 
@@ -284,7 +296,47 @@ async def atualizar_ponto_coleta(
     db.refresh(ponto)
     return _serializar_ponto(ponto)
 
+@router.put("/pontos-coleta/{ponto_id}/horarios", response_model=List[HorarioResponse], tags=["Ponto de Coleta"])
+async def atualizar_horarios_ponto(
+    ponto_id: int,
+    horarios_in: List[HorarioCreate],
+    db: Session = Depends(get_db),
+    # Atualmente a gestão de pontos é feita pelo admin no seu sistema. 
+    # Se o "dono" for uma cooperativa, você pode usar Depends(require_role("admin", "cooperativa"))
+    usuario_atual: Usuario = Depends(require_role("admin")) 
+):
+    """
+    RF020: Atualiza a grade de horários de funcionamento de um ponto de coleta.
+    Recebe uma lista completa de horários e substitui os antigos.
+    """
+    ponto = db.query(PontoColeta).filter(PontoColeta.id == ponto_id).first()
+    if not ponto:
+        raise HTTPException(status_code=404, detail="Ponto de coleta não encontrado.")
 
+    # 1. Remove os horários antigos (substituição completa da grade)
+    db.query(HorarioDisponibilidade).filter(HorarioDisponibilidade.ponto_coleta_id == ponto_id).delete()
+
+    # 2. Insere os novos horários
+    novos_horarios = []
+    for h in horarios_in:
+        # Validação simples para evitar que feche antes de abrir
+        if h.hora_fechamento <= h.hora_abertura:
+            raise HTTPException(status_code=400, detail=f"No dia {h.dia_semana}, a hora de fechamento deve ser maior que a de abertura.")
+
+        novo_horario = HorarioDisponibilidade(
+            ponto_coleta_id=ponto_id,
+            dia_semana=h.dia_semana,
+            hora_abertura=h.hora_abertura,
+            hora_fechamento=h.hora_fechamento
+        )
+        novos_horarios.append(novo_horario)
+        db.add(novo_horario)
+    
+    db.commit()
+    
+    # Busca novamente para retornar atualizado
+    horarios_salvos = db.query(HorarioDisponibilidade).filter(HorarioDisponibilidade.ponto_coleta_id == ponto_id).all()
+    return horarios_salvos
 # ========================
 # QR CODE TOKEN (RF013)
 # ========================
@@ -375,3 +427,4 @@ async def validar_qrcode_token(
         "ponto_nome": ponto.nome if ponto else "Desconhecido",
         "token": token.token
     }
+

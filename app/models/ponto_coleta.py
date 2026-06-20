@@ -6,12 +6,24 @@ Armazena informações dos pontos de coleta de resíduos com localização, inve
 e dados operacionais usados na visualização do mapa/detalhes.
 """
 
-from sqlalchemy import Column, Integer, String, Float, DateTime, JSON, ForeignKey
+from sqlalchemy import JSON, Column, DateTime, Float, Integer, String, Time, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 
+class HorarioDisponibilidade(Base):
+    __tablename__ = "horarios_disponibilidade"
 
+    id = Column(Integer, primary_key=True, index=True)
+    ponto_coleta_id = Column(Integer, ForeignKey("ponto_coleta.id", ondelete="CASCADE"), nullable=False)    
+    # 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
+    dia_semana = Column(Integer, nullable=False) 
+    hora_abertura = Column(Time, nullable=False)
+    hora_fechamento = Column(Time, nullable=False)
+
+    # Relacionamento de volta para o ponto de coleta
+    ponto_coleta = relationship("PontoColeta", back_populates="horarios")
+    
 class PontoColeta(Base):
     """
     Modelo SQLAlchemy para a tabela de pontos de coleta.
@@ -56,3 +68,4 @@ class PontoColeta(Base):
     cooperativa_responsavel = relationship("Usuario", foreign_keys=[cooperativa_id])
     descartes = relationship("Descarte", back_populates="ponto_coleta")
     qrcode_tokens = relationship("QRCodeToken", back_populates="ponto_coleta")
+    horarios = relationship("HorarioDisponibilidade", back_populates="ponto_coleta")
