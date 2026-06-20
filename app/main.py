@@ -1,17 +1,44 @@
 """
 Aplicação Principal - Residuum
 """
-
+from app.database import Base, engine
+# importar todos os models
+from app.models.usuario import Usuario
+from app.models.endereco import Endereco
+from app.models.descarte import Descarte
+from app.models.pontuacao import Pontuacao
+from app.models.inventario_usuario import InventarioUsuario
+from app.models.ponto_coleta import PontoColeta
+from app.models.estoque import Estoque
+from app.models.qrcode_token import QRCodeToken
+from app.models.notificacao import Notificacao
+from app.models.audit_log import AuditLog
+from app.models.coleta import Coleta
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from app.routes import admin, auth, descarte, endereco, ponto_coleta, inventario_usuario, notificacao
-from app.core.decorators import public
+
 from app.core.security import require_auth_unless_public
+from app.core.decorators import public
+
+from app.routes import (
+    auth,
+    descarte,
+    endereco,
+    ponto_coleta,
+    inventario_usuario,
+    admin,
+    notificacao,
+    coleta,
+)
+
+Base.metadata.create_all(bind=engine)
+
+print("Tabelas registradas:")
+print(Base.metadata.tables.keys())
 
 app = FastAPI(
-    title="Residuum API",
-    dependencies=[Depends(require_auth_unless_public)],
+    title="Residuum API"
 )
 
 app.add_middleware(
@@ -20,6 +47,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+app.include_router(
+    coleta.router,
+    tags=["Coletas"]
 )
 
 # Registro das rotas
@@ -32,12 +64,10 @@ app.include_router(admin.router)
 app.include_router(notificacao.router, tags=["Notificações"])
 
 @app.get("/")
-@public
 def root():
     return {"msg": "Residuum API rodando com sucesso!"}
 
 @app.get("/painel-testes", response_class=HTMLResponse)
-@public
 def painel_testes():
     """
     Painel de testes visual integrado para a API Residuum.
