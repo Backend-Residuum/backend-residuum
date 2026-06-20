@@ -9,9 +9,11 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.models.descarte import Descarte
+from app.models.resgate_pontuacao import ResgatePontuacao
 from app.models.usuario import Usuario
 from app.models.ponto_coleta import PontoColeta
 from app.models.inventario_usuario import InventarioUsuario
+from app.services.pontuacao_service import calcular_pontos_proporcionais
 
 
 def serializar_endereco(usuario: Usuario) -> dict[str, Any] | None:
@@ -104,4 +106,71 @@ def serializar_descarte(descarte: Descarte, db: Session) -> dict[str, Any]:
         "qrcode_token_id": descarte.qrcode_token_id,
         "inventario_usuario_id": descarte.inventario_usuario_id,
         "inventario_item_descricao": item_inventario.descricao if item_inventario else None,
+    }
+
+
+def serializar_evento_extrato_descarte(descarte: Descarte, db: Session) -> dict[str, Any]:
+    """Converte um descarte em um item de extrato de pontos."""
+    evento = serializar_descarte(descarte, db)
+    quantidade_base = float(descarte.quantidade or 0)
+    pontos = 0
+
+    if descarte.status == "confirmado":
+        pontos = calcular_pontos_proporcionais(
+            quantidade_base,
+            float(descarte.quantidade_confirmada or 0),
+        )
+    elif descarte.status == "pendente":
+        pontos = calcular_pontos_proporcionais(quantidade_base, quantidade_base)
+
+    return {
+        "origem": "descarte",
+        "status": descarte.status,
+        "data_evento": descarte.data_desc,
+        "pontos": pontos,
+        "descricao": descarte.observacao,
+        "referencia": None,
+        "quantidade": float(descarte.quantidade or 0),
+        "tipo_residuo": descarte.tipo_residuo,
+        "ponto_coleta_id": evento["ponto_coleta_id"],
+        "ponto_coleta_nome": evento["ponto_coleta_nome"],
+        "ponto_coleta_endereco": evento["ponto_coleta_endereco"],
+        "id_descarte": descarte.id_descarte,
+        "id_resgate": None,
+        "inventario_usuario_id": descarte.inventario_usuario_id,
+        "inventario_item_descricao": evento["inventario_item_descricao"],
+    }
+
+
+def serializar_resgate_pontuacao(resgate: ResgatePontuacao) -> dict[str, Any]:
+    """Serializa um resgate de pontos para respostas da API."""
+    return {
+        "id_resgate": resgate.id_resgate,
+        "usuario_id": resgate.usuario_id,
+        "pontos_utilizados": resgate.pontos_utilizados,
+        "descricao": resgate.descricao,
+        "referencia": resgate.referencia,
+        "status": resgate.status,
+        "data_resgate": resgate.data_resgate,
+    }
+
+
+def serializar_evento_extrato_resgate(resgate: ResgatePontuacao) -> dict[str, Any]:
+    """Converte um resgate em um item de extrato de pontos."""
+    return {
+        "origem": "resgate",
+        "status": resgate.status,
+        "data_evento": resgate.data_resgate,
+        "pontos": -abs(int(resgate.pontos_utilizados or 0)),
+        "descricao": resgate.descricao,
+        "referencia": resgate.referencia,
+        "quantidade": None,
+        "tipo_residuo": None,
+        "ponto_coleta_id": None,
+        "ponto_coleta_nome": None,
+        "ponto_coleta_endereco": None,
+        "id_descarte": None,
+        "id_resgate": resgate.id_resgate,
+        "inventario_usuario_id": None,
+        "inventario_item_descricao": resgate.descricao,
     }
