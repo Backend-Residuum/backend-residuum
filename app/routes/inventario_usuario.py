@@ -9,6 +9,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import raise_not_found
 from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.usuario import Usuario
@@ -233,7 +234,7 @@ def descartar_item_inventario(
 
     ponto = db.query(PontoColeta).filter(PontoColeta.id == obj_in.ponto_coleta_id).first()
     if not ponto:
-        raise HTTPException(status_code=404, detail="Ponto de coleta não encontrado.")
+        raise_not_found("Ponto de coleta não encontrado.")
     validar_ponto_disponivel_para_descarte(ponto)
 
     validacao_qrcode = False

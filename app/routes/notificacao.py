@@ -2,9 +2,10 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import raise_not_found
 from app.database import get_db
 from app.dependencies.auth import require_role, validar_acesso_operacional_ao_ponto
 from app.models.notificacao import Notificacao
@@ -47,7 +48,7 @@ def marcar_como_lida(
     notificacao = db.query(Notificacao).filter(Notificacao.id == notificacao_id).first()
 
     if not notificacao:
-        raise HTTPException(status_code=404, detail="Notificação não encontrada.")
+        raise_not_found("Notificação não encontrada.")
 
     if usuario.role == "cooperativa":
         ponto = db.query(PontoColeta).filter(PontoColeta.id == notificacao.ponto_coleta_id).first()

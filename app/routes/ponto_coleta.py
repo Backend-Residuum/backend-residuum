@@ -12,6 +12,11 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import (
+    raise_bad_request,
+    raise_conflict,
+    raise_not_found,
+)
 from app.database import get_db
 from app.dependencies.auth import get_current_user, require_role, validar_acesso_operacional_ao_ponto
 from app.models.usuario import Usuario
@@ -44,9 +49,9 @@ def _validar_cooperativa_designada(db: Session, cooperativa_id: Optional[int]) -
 
     cooperativa = db.query(Usuario).filter(Usuario.id == cooperativa_id).first()
     if not cooperativa:
-        raise HTTPException(status_code=400, detail="Cooperativa responsável não encontrada.")
+        raise_bad_request("Cooperativa responsável não encontrada.")
     if cooperativa.role != "cooperativa":
-        raise HTTPException(status_code=400, detail="Usuário informado não possui role cooperativa.")
+        raise_bad_request("Usuário informado não possui role cooperativa.")
 
     return cooperativa
 
@@ -96,7 +101,7 @@ async def criar_ponto_coleta(
     """Cria um novo ponto de coleta (apenas admin)."""
     status = (obj_in.status or "ativo").lower()
     if status not in STATUS_VALIDOS:
-        raise HTTPException(status_code=400, detail="Status inválido. Use: ativo, cheio ou inativo.")
+        raise_bad_request("Status inválido. Use: ativo, cheio ou inativo.")
 
     cooperativa = _validar_cooperativa_designada(db, obj_in.cooperativa_id)
     _validar_ponto_ativo_com_cooperativa(status, cooperativa.id if cooperativa else None)
@@ -131,12 +136,9 @@ async def obter_ponto_coleta(
     """Obtém os detalhes de um ponto de coleta."""
     ponto = db.query(PontoColeta).filter(PontoColeta.id == ponto_id).first()
     if not ponto:
-        raise HTTPException(status_code=404, detail="Ponto de coleta não encontrado.")
+        raise_not_found("Ponto de coleta não encontrado.")
     if usuario_atual.role != "admin" and ponto.cooperativa_id is None:
-        raise HTTPException(
-            status_code=409,
-            detail="Ponto de coleta indisponível para descarte até a designação de uma cooperativa responsável.",
-        )
+        raise_conflict("Ponto de coleta indisponível para descarte até a designação de uma cooperativa responsável.")
     if usuario_atual.role == "cooperativa":
         validar_acesso_operacional_ao_ponto(usuario_atual, ponto)
     return _serializar_ponto(ponto)
@@ -238,7 +240,7 @@ async def atualizar_ponto_coleta(
     """Atualiza um ponto de coleta (apenas admin)."""
     ponto = db.query(PontoColeta).filter(PontoColeta.id == ponto_id).first()
     if not ponto:
-        raise HTTPException(status_code=404, detail="Ponto de coleta não encontrado.")
+        raise_not_found("Ponto de coleta não encontrado.")
 
     if obj_in.nome is not None:
         ponto.nome = obj_in.nome
@@ -259,7 +261,7 @@ async def atualizar_ponto_coleta(
     if obj_in.status is not None:
         status = obj_in.status.lower()
         if status not in STATUS_VALIDOS:
-            raise HTTPException(status_code=400, detail="Status inválido. Use: ativo, cheio ou inativo.")
+            raise_bad_request("Status inválido. Use: ativo, cheio ou inativo.")
         ponto.status = status
         ponto.ativo = 0 if status == "inativo" else 1
     if obj_in.ativo is not None:

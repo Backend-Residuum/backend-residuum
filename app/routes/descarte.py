@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
+from app.core.exceptions import raise_bad_request, raise_not_found
 from app.database import get_db
 from app.dependencies.auth import get_current_user, require_role, validar_acesso_operacional_ao_ponto
 from app.models.descarte import Descarte
@@ -53,7 +54,7 @@ async def registrar_descarte(
     # Busca o ponto de coleta
     ponto = db.query(PontoColeta).filter(PontoColeta.id == obj_in.ponto_coleta_id).first()
     if not ponto:
-        raise HTTPException(status_code=404, detail="Ponto de coleta não encontrado.")
+        raise_not_found("Ponto de coleta não encontrado.")
     validar_ponto_disponivel_para_descarte(ponto)
 
     # Validação de geofencing (RF010 + RN005)
@@ -169,7 +170,7 @@ async def confirmar_descarte(
     if not descarte:
         raise HTTPException(status_code=404, detail="Descarte não encontrado.")
     if descarte.ponto_coleta_id is None:
-        raise HTTPException(status_code=400, detail="Descarte sem ponto de coleta vinculado.")
+        raise_bad_request("Descarte sem ponto de coleta vinculado.")
 
     validar_acesso_operacional_ao_ponto(usuario_operador, descarte.ponto_coleta)
 

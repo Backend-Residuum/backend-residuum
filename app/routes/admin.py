@@ -18,6 +18,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import raise_bad_request
 from app.database import get_db
 from app.dependencies.auth import require_role
 from app.models.audit_log import AuditLog
@@ -175,10 +176,7 @@ def alterar_role(
     if usuario.role == "cooperativa" and payload.role != "cooperativa":
         possui_pontos_vinculados = db.query(PontoColeta.id).filter(PontoColeta.cooperativa_id == usuario.id).first()
         if possui_pontos_vinculados:
-            raise HTTPException(
-                status_code=400,
-                detail="Reatribua os pontos de coleta desta cooperativa antes de alterar o role.",
-            )
+            raise_bad_request("Reatribua os pontos de coleta desta cooperativa antes de alterar o role.")
 
     role_anterior = usuario.role
     usuario.role = payload.role
@@ -257,10 +255,7 @@ def remover_usuario(
     if usuario.role == "cooperativa":
         possui_pontos_vinculados = db.query(PontoColeta.id).filter(PontoColeta.cooperativa_id == usuario.id).first()
         if possui_pontos_vinculados:
-            raise HTTPException(
-                status_code=400,
-                detail="Reatribua os pontos de coleta desta cooperativa antes de remover o usuário.",
-            )
+            raise_bad_request("Reatribua os pontos de coleta desta cooperativa antes de remover o usuário.")
 
     registrar_acao(
         db,

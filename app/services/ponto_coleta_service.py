@@ -2,8 +2,10 @@
 
 from datetime import datetime
 
-from fastapi import HTTPException
-
+from app.core.exceptions import (
+    raise_bad_request,
+    raise_conflict,
+)
 from app.models.ponto_coleta import PontoColeta
 
 
@@ -39,25 +41,19 @@ def status_ponto_coleta(ponto: PontoColeta) -> str:
 def validar_ponto_ativo_com_cooperativa(status_ponto: str, cooperativa_id: int | None) -> None:
     """Impede ponto ativo/cheio sem cooperativa responsável."""
     if status_ponto in {"ativo", "cheio"} and cooperativa_id is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Pontos ativos precisam ter uma cooperativa responsável designada.",
-        )
+        raise_bad_request("Pontos ativos precisam ter uma cooperativa responsável designada.")
 
 
 def validar_ponto_disponivel_para_descarte(ponto: PontoColeta) -> None:
     """Bloqueia descarte em ponto sem cooperativa ou fora de operação."""
     if ponto.cooperativa_id is None:
-        raise HTTPException(
-            status_code=409,
-            detail="Ponto de coleta indisponível para descarte até a designação de uma cooperativa responsável.",
-        )
+        raise_conflict("Ponto de coleta indisponível para descarte até a designação de uma cooperativa responsável.")
 
     status_atual = status_ponto_coleta(ponto)
     if status_atual == "inativo":
         if ponto.data_final and ponto.data_final.replace(tzinfo=None) < datetime.utcnow():
-            raise HTTPException(status_code=409, detail="Ponto de coleta expirado para descarte.")
-        raise HTTPException(status_code=409, detail="Ponto de coleta inativo para descarte.")
+            raise_conflict("Ponto de coleta expirado para descarte.")
+        raise_conflict("Ponto de coleta inativo para descarte.")
 
     if status_atual == "cheio":
-        raise HTTPException(status_code=409, detail="Ponto de coleta cheio no momento.")
+        raise_conflict("Ponto de coleta cheio no momento.")

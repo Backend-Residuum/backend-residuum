@@ -9,6 +9,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import raise_forbidden, raise_not_found
 from app.database import get_db
 from app.models.ponto_coleta import PontoColeta
 from app.models.usuario import Usuario
@@ -74,10 +75,7 @@ def require_role(*roles: str):
 def validar_acesso_operacional_ao_ponto(usuario: Usuario, ponto: PontoColeta | None) -> PontoColeta:
     """Garante que apenas admin ou a cooperativa designada operem um ponto."""
     if not ponto:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Ponto de coleta não encontrado",
-        )
+        raise_not_found("Ponto de coleta não encontrado.")
 
     if usuario.role == "admin":
         return ponto
@@ -85,7 +83,4 @@ def validar_acesso_operacional_ao_ponto(usuario: Usuario, ponto: PontoColeta | N
     if usuario.role == "cooperativa" and ponto.cooperativa_id == usuario.id:
         return ponto
 
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Permissão insuficiente para operar este ponto de coleta",
-    )
+    raise_forbidden("Permissão insuficiente para operar este ponto de coleta")
