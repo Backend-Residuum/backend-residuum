@@ -716,3 +716,32 @@ app/schemas/
 app/services/
 README.md
 ```
+
+
+## Task 35 — Validação e Organização do Swagger
+
+Foi realizada a validação da documentação automática da API utilizando o Swagger/OpenAPI disponibilizado pelo FastAPI.
+
+### Verificações realizadas
+
+- Conferência de todas as rotas registradas na aplicação;
+- Validação da exibição das rotas em uma única instância do Swagger;
+- Verificação da organização dos endpoints por grupos (tags);
+- Conferência da disponibilidade da documentação em `/docs`.
+
+### Resultado
+
+A validação confirmou que todos os endpoints da aplicação estão sendo expostos corretamente em uma única documentação Swagger.
+
+Grupos identificados:
+
+- Autenticação
+- Descarte
+- Endereço
+- Inventário do Usuário
+- Notificações
+- Ponto de Coleta
+- QR Code
+- Admin
+
+Nenhuma inconsistência foi identificada durante a validação, não sendo necessária alteração estrutural nas rotas ou na configuração do FastAPI.

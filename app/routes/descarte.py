@@ -17,7 +17,7 @@ from app.services.serializacao_service import serializar_descarte
 from app.services.notificacao_service import verificar_capacidade_e_notificar
 from datetime import datetime
 
-router = APIRouter()
+router = APIRouter(prefix="/descarte", tags=["Descarte"])
 
 @router.post("/", response_model=DescarteResponse)
 async def registrar_descarte(

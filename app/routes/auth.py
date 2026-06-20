@@ -26,7 +26,7 @@ from app.services.serializacao_service import (
 )
 
 # Roteador para agrupar as rotas de autenticação
-router = APIRouter()
+router = APIRouter(tags=["Autenticação"])
 
 # Contexto para hashing de senhas usando bcrypt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

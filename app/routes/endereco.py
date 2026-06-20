@@ -14,7 +14,7 @@ from app.models.endereco import Endereco
 from app.models.usuario import Usuario
 from app.schemas.endereco import EnderecoCreate
 
-router = APIRouter()
+router = APIRouter(tags=["Endereço"])
 
 
 @router.put("/me/endereco")

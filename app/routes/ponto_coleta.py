@@ -20,7 +20,7 @@ from app.schemas.ponto_coleta import PontoColetaCreate, PontoColetaResponse, Pon
 from app.schemas.qrcode_token import QRCodeTokenCreate, QRCodeTokenResponse, QRCodeTokenValidate
 from app.schemas.ponto_coleta import HorarioCreate, HorarioResponse
 
-router = APIRouter()
+router = APIRouter(tags=["Ponto de Coleta e QR Code"])
 
 
 # ========================
