@@ -7,7 +7,7 @@ O id do usuário é sempre obtido do token, nunca de path/body.
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-
+from app.schemas.base import BaseResponse
 from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.endereco import Endereco
@@ -16,38 +16,71 @@ from app.schemas.endereco import EnderecoCreate
 
 router = APIRouter()
 
-
-@router.put("/me/endereco")
-def upsert_endereco(
-    dados: EnderecoCreate,
+@router.put("/me/endereco", response_model=BaseResponse)
+def cadastrar_endereco(
+    endereco: EnderecoCreate,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_current_user)
 ):
     """
-    Cria ou atualiza o endereço do usuário autenticado.
-
-    Se o usuário ainda não tem endereço, cria um novo e vincula.
-    Se já tem, atualiza os campos do endereço existente.
+    Cadastra ou atualiza endereço do usuário autenticado.
     """
-    if usuario.endereco_id is None:
-        novo = Endereco(**dados.model_dump())
-        db.add(novo)
-        db.flush()
-        usuario.endereco_id = novo.id_end
-        endereco = novo
-    else:
-        endereco = db.query(Endereco).filter(Endereco.id_end == usuario.endereco_id).first()
-        for campo, valor in dados.model_dump().items():
-            setattr(endereco, campo, valor)
 
+    # Verifica se usuário já possui endereço
+    endereco_existente = db.query(Endereco).filter(
+        Endereco.usuario_id == usuario.id
+    ).first()
+
+    # Atualiza endereço existente
+    if endereco_existente:
+
+        endereco_existente.rua = endereco.rua
+        endereco_existente.numero = endereco.numero
+        endereco_existente.bairro = endereco.bairro
+        endereco_existente.cep = endereco.cep
+        endereco_existente.cidade = endereco.cidade
+
+        db.commit()
+        db.refresh(endereco_existente)
+
+        return BaseResponse(
+            success=True,
+            message="Endereço atualizado com sucesso",
+            data={
+                "id_end": endereco_existente.id_end,
+                "rua": endereco_existente.rua,
+                "numero": endereco_existente.numero,
+                "bairro": endereco_existente.bairro,
+                "cep": endereco_existente.cep,
+                "cidade": endereco_existente.cidade
+            }
+        )
+
+    # Cria novo endereço
+    novo_endereco = Endereco(
+        usuario_id=usuario.id,
+        rua=endereco.rua,
+        numero=endereco.numero,
+        bairro=endereco.bairro,
+        cep=endereco.cep,
+        cidade=endereco.cidade
+    )
+
+    # Salva no banco
+    db.add(novo_endereco)
     db.commit()
-    db.refresh(endereco)
+    db.refresh(novo_endereco)
 
-    return {
-        "id_end": endereco.id_end,
-        "rua": endereco.rua,
-        "bairro": endereco.bairro,
-        "numero": endereco.numero,
-        "cep": endereco.cep,
-        "cidade": endereco.cidade,
-    }
+    # Retorna resposta padronizada
+    return BaseResponse(
+        success=True,
+        message="Endereço cadastrado com sucesso",
+        data={
+            "id_end": novo_endereco.id_end,
+            "rua": novo_endereco.rua,
+            "numero": novo_endereco.numero,
+            "bairro": novo_endereco.bairro,
+            "cep": novo_endereco.cep,
+            "cidade": novo_endereco.cidade
+        }
+    )
