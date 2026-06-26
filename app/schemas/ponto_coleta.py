@@ -48,6 +48,7 @@ class PontoColetaCreate(BaseModel):
     horario_funcionamento: Optional[str] = None
     status: Optional[str] = Field(default="ativo", description="ativo, cheio ou inativo")
     data_final: Optional[datetime] = Field(default=None, description="Data limite para pontos temporários")
+    cooperativa_id: Optional[int] = Field(default=None, description="Usuário com role=cooperativa responsável pelo ponto")
 
 class PontoColetaUpdate(BaseModel):
     """Modelo para atualização de um ponto de coleta."""
@@ -62,6 +63,7 @@ class PontoColetaUpdate(BaseModel):
     status: Optional[str] = None
     ativo: Optional[int] = None
     data_final: Optional[datetime] = None
+    cooperativa_id: Optional[int] = None
 
 class PontoColetaResponse(BaseModel):
     """Modelo de resposta para um ponto de coleta."""
@@ -75,6 +77,7 @@ class PontoColetaResponse(BaseModel):
     tipos_residuos_aceitos: List[str] = []
     status: str = "ativo"
     status_calculado: Optional[str] = None
+    cooperativa_id: Optional[int] = None
     inventario: Dict[str, Any]
     total_inventario: Optional[float] = None
     percentual_ocupacao: Optional[float] = None

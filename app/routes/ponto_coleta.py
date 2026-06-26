@@ -4,21 +4,42 @@ Rotas de Ponto de Coleta e QR Code Token
 Gerencia os pontos de coleta e tokens para validação presencial via QR Code.
 """
 
+from typing import Optional, List, Dict, Any
+import uuid
+from datetime import datetime, timedelta
+<<<<<<< HEAD
+
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
-import uuid
-from datetime import datetime, timedelta
+
+from app.core.exceptions import (
+    raise_bad_request,
+    raise_conflict,
+    raise_not_found,
+)
+=======
 from typing import List
+>>>>>>> c72a182ed707b5d47e448c468da1f9093deab4aa
 from app.database import get_db
-from app.dependencies.auth import get_current_user, require_role
+from app.dependencies.auth import get_current_user, require_role, validar_acesso_operacional_ao_ponto
 from app.models.usuario import Usuario
 from app.models.ponto_coleta import HorarioDisponibilidade
 from app.models.ponto_coleta import PontoColeta
 from app.models.qrcode_token import QRCodeToken
 from app.schemas.ponto_coleta import PontoColetaCreate, PontoColetaResponse, PontoColetaUpdate
 from app.schemas.qrcode_token import QRCodeTokenCreate, QRCodeTokenResponse, QRCodeTokenValidate
+<<<<<<< HEAD
+from app.services.ponto_coleta_service import (
+    status_ponto_coleta,
+    total_inventario_ponto,
+    validar_ponto_ativo_com_cooperativa,
+    validar_ponto_disponivel_para_descarte,
+)
+from app.services.localizacao_service import calcular_distancia_haversine
+=======
 from app.schemas.ponto_coleta import HorarioCreate, HorarioResponse
+>>>>>>> c72a182ed707b5d47e448c468da1f9093deab4aa
 
 router = APIRouter()
 
@@ -27,11 +48,21 @@ router = APIRouter()
 # PONTO DE COLETA
 # ========================
 
-from typing import Optional, List, Dict, Any
-from app.services.localizacao_service import calcular_distancia_haversine
-
 
 STATUS_VALIDOS = {"ativo", "cheio", "inativo"}
+
+
+def _validar_cooperativa_designada(db: Session, cooperativa_id: Optional[int]) -> Optional[Usuario]:
+    if cooperativa_id is None:
+        return None
+
+    cooperativa = db.query(Usuario).filter(Usuario.id == cooperativa_id).first()
+    if not cooperativa:
+        raise_bad_request("Cooperativa responsável não encontrada.")
+    if cooperativa.role != "cooperativa":
+        raise_bad_request("Usuário informado não possui role cooperativa.")
+
+    return cooperativa
 
 
 def _normalizar_tipos(tipos: Optional[List[str]]) -> List[str]:
@@ -40,34 +71,8 @@ def _normalizar_tipos(tipos: Optional[List[str]]) -> List[str]:
     return [str(tipo).strip().lower() for tipo in tipos if str(tipo).strip()]
 
 
-def _total_inventario(inventario: Optional[Dict[str, Any]]) -> float:
-    if not inventario:
-        return 0.0
-    total = 0.0
-    for valor in inventario.values():
-        try:
-            total += float(valor or 0)
-        except (TypeError, ValueError):
-            continue
-    return total
-
-
-def _status_calculado(ponto: PontoColeta) -> str:
-    if ponto.ativo == 0 or ponto.status == "inativo":
-        return "inativo"
-
-    if ponto.data_final and ponto.data_final.replace(tzinfo=None) < datetime.utcnow():
-        return "inativo"
-
-    total = _total_inventario(ponto.inventario)
-    if ponto.capacidade_maxima and ponto.capacidade_maxima > 0 and total >= float(ponto.capacidade_maxima):
-        return "cheio"
-
-    return ponto.status or "ativo"
-
-
 def _serializar_ponto(ponto: PontoColeta, distancia_km: Optional[float] = None) -> Dict[str, Any]:
-    total = _total_inventario(ponto.inventario)
+    total = total_inventario_ponto(ponto)
     percentual = None
     if ponto.capacidade_maxima and ponto.capacidade_maxima > 0:
         percentual = round((total / float(ponto.capacidade_maxima)) * 100, 2)
@@ -83,7 +88,8 @@ def _serializar_ponto(ponto: PontoColeta, distancia_km: Optional[float] = None) 
         "tipos_residuos_aceitos": ponto.tipos_residuos_aceitos or [],
         "horario_funcionamento": ponto.horario_funcionamento,
         "status": ponto.status or "ativo",
-        "status_calculado": _status_calculado(ponto),
+        "status_calculado": status_ponto_coleta(ponto),
+        "cooperativa_id": ponto.cooperativa_id,
         "inventario": ponto.inventario or {},
         "total_inventario": round(total, 3),
         "percentual_ocupacao": percentual,
@@ -107,7 +113,10 @@ async def criar_ponto_coleta(
     """Cria um novo ponto de coleta (apenas admin)."""
     status = (obj_in.status or "ativo").lower()
     if status not in STATUS_VALIDOS:
-        raise HTTPException(status_code=400, detail="Status inválido. Use: ativo, cheio ou inativo.")
+        raise_bad_request("Status inválido. Use: ativo, cheio ou inativo.")
+
+    cooperativa = _validar_cooperativa_designada(db, obj_in.cooperativa_id)
+    _validar_ponto_ativo_com_cooperativa(status, cooperativa.id if cooperativa else None)
 
     novo_ponto = PontoColeta(
         nome=obj_in.nome,
@@ -120,6 +129,7 @@ async def criar_ponto_coleta(
         horario_funcionamento=obj_in.horario_funcionamento,
         status=status,
         ativo=0 if status == "inativo" else 1,
+        cooperativa_id=cooperativa.id if cooperativa else None,
         inventario={},
         data_final=obj_in.data_final
     )
@@ -133,11 +143,16 @@ async def criar_ponto_coleta(
 async def obter_ponto_coleta(
     ponto_id: int,
     db: Session = Depends(get_db),
+    usuario_atual: Usuario = Depends(get_current_user),
 ):
     """Obtém os detalhes de um ponto de coleta."""
     ponto = db.query(PontoColeta).filter(PontoColeta.id == ponto_id).first()
     if not ponto:
-        raise HTTPException(status_code=404, detail="Ponto de coleta não encontrado.")
+        raise_not_found("Ponto de coleta não encontrado.")
+    if usuario_atual.role != "admin" and ponto.cooperativa_id is None:
+        raise_conflict("Ponto de coleta indisponível para descarte até a designação de uma cooperativa responsável.")
+    if usuario_atual.role == "cooperativa":
+        validar_acesso_operacional_ao_ponto(usuario_atual, ponto)
     return _serializar_ponto(ponto)
 
 
@@ -160,11 +175,16 @@ async def listar_pontos_coleta(
     - Retorna distância calculada quando lat/long são informados.
     """
     # Usuários comuns só enxergam pontos disponíveis.
-    # Admin pode solicitar incluir_inativos=true para editar/reativar pontos pausados.
-    if incluir_inativos and usuario_atual.role != "admin":
+    # Admin e cooperativa podem solicitar incluir_inativos dentro do próprio escopo.
+    if incluir_inativos and usuario_atual.role not in {"admin", "cooperativa"}:
         incluir_inativos = False
 
     query = db.query(PontoColeta)
+
+    if usuario_atual.role == "cooperativa":
+        query = query.filter(PontoColeta.cooperativa_id == usuario_atual.id)
+    elif usuario_atual.role != "admin":
+        query = query.filter(PontoColeta.cooperativa_id.is_not(None))
 
     if not incluir_inativos:
         query = query.filter(PontoColeta.ativo == 1)
@@ -175,11 +195,6 @@ async def listar_pontos_coleta(
                 PontoColeta.data_final > datetime.utcnow()
             )
         )
-
-    pontos = query.all()
-
-    if not incluir_inativos:
-        query = query.filter(PontoColeta.ativo == 1)
 
     pontos = query.all()
     tipo_normalizado = tipo_residuo.strip().lower() if tipo_residuo else None
@@ -237,7 +252,7 @@ async def atualizar_ponto_coleta(
     """Atualiza um ponto de coleta (apenas admin)."""
     ponto = db.query(PontoColeta).filter(PontoColeta.id == ponto_id).first()
     if not ponto:
-        raise HTTPException(status_code=404, detail="Ponto de coleta não encontrado.")
+        raise_not_found("Ponto de coleta não encontrado.")
 
     if obj_in.nome is not None:
         ponto.nome = obj_in.nome
@@ -258,7 +273,7 @@ async def atualizar_ponto_coleta(
     if obj_in.status is not None:
         status = obj_in.status.lower()
         if status not in STATUS_VALIDOS:
-            raise HTTPException(status_code=400, detail="Status inválido. Use: ativo, cheio ou inativo.")
+            raise_bad_request("Status inválido. Use: ativo, cheio ou inativo.")
         ponto.status = status
         ponto.ativo = 0 if status == "inativo" else 1
     if obj_in.ativo is not None:
@@ -270,6 +285,12 @@ async def atualizar_ponto_coleta(
 
     if obj_in.data_final is not None:
         ponto.data_final = obj_in.data_final
+
+    if "cooperativa_id" in obj_in.model_fields_set:
+        cooperativa = _validar_cooperativa_designada(db, obj_in.cooperativa_id)
+        ponto.cooperativa_id = cooperativa.id if cooperativa else None
+
+    _validar_ponto_ativo_com_cooperativa(ponto.status or "ativo", ponto.cooperativa_id)
 
     db.commit()
     db.refresh(ponto)
@@ -324,7 +345,7 @@ async def atualizar_horarios_ponto(
 async def gerar_qrcode_token(
     obj_in: QRCodeTokenCreate,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_role("admin"))
+    usuario: Usuario = Depends(require_role("admin", "cooperativa"))
 ):
     """
     Gera um novo token QR Code para um ponto de coleta.
@@ -334,8 +355,8 @@ async def gerar_qrcode_token(
     """
     # Verifica se o ponto existe
     ponto = db.query(PontoColeta).filter(PontoColeta.id == obj_in.ponto_coleta_id).first()
-    if not ponto:
-        raise HTTPException(status_code=404, detail="Ponto de coleta não encontrado.")
+    validar_acesso_operacional_ao_ponto(usuario, ponto)
+    validar_ponto_disponivel_para_descarte(ponto)
     
     # Gera um UUID único
     token_uuid = str(uuid.uuid4())
@@ -360,9 +381,13 @@ async def gerar_qrcode_token(
 async def listar_tokens_ativos(
     ponto_id: int,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_role("admin"))
+    usuario: Usuario = Depends(require_role("admin", "cooperativa"))
 ):
     """Lista todos os tokens ativos de um ponto de coleta."""
+    ponto = db.query(PontoColeta).filter(PontoColeta.id == ponto_id).first()
+    validar_acesso_operacional_ao_ponto(usuario, ponto)
+    validar_ponto_disponivel_para_descarte(ponto)
+
     tokens = db.query(QRCodeToken).filter(
         QRCodeToken.ponto_coleta_id == ponto_id,
         QRCodeToken.ativo == 1,
@@ -393,6 +418,8 @@ async def validar_qrcode_token(
     
     # Retorna os dados do ponto de coleta
     ponto = db.query(PontoColeta).filter(PontoColeta.id == token.ponto_coleta_id).first()
+    if ponto:
+        validar_ponto_disponivel_para_descarte(ponto)
     
     return {
         "valido": True,

@@ -24,6 +24,7 @@ from app.services.serializacao_service import (
     serializar_inventario_item,
     serializar_descarte,
 )
+from app.services.extrato_pontos_service import montar_extrato_pontos_usuario
 
 # Roteador para agrupar as rotas de autenticação
 router = APIRouter()
@@ -194,4 +195,5 @@ def get_perfil(
         "inventario": [serializar_inventario_item(item) for item in inventario_ativo],
         "historico_resumido": [serializar_descarte(descarte, db) for descarte in historico_resumido],
         "descartes_pendentes": [serializar_descarte(descarte, db) for descarte in descartes_pendentes],
+        "extrato_pontos_resumido": montar_extrato_pontos_usuario(usuario, db, limit=5)["itens"],
     }
