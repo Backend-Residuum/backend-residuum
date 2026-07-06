@@ -143,9 +143,21 @@ def painel_testes():
             </div>
         </div>
 
-        <!-- ==================== SEÇÃO 3: PAINEL DE AUDITORIA ==================== -->
+        <!-- ==================== SEÇÃO 3: RF021 - PAINEL DA COOPERATIVA ==================== -->
         <div class="section-card">
-            <h2 class="text-2xl font-bold text-orange-600 mb-4">📊 Seção 3: Painel de Auditoria (Base de Dados)</h2>
+            <h2 class="text-2xl font-bold text-emerald-700 mb-4">🗺️ Seção 3: Painel da Cooperativa</h2>
+
+            <button class="btn-primary w-full mb-4" onclick="carregarPainelCooperativa()">🔄 Atualizar Pontos da Cooperativa</button>
+
+            <div id="painelCooperativaVazio" class="text-center text-gray-600 py-8">
+                Faça login com uma conta de cooperativa e atualize o painel
+            </div>
+            <div id="painelCooperativaPontos" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+
+        <!-- ==================== SEÇÃO 4: PAINEL DE AUDITORIA ==================== -->
+        <div class="section-card">
+            <h2 class="text-2xl font-bold text-orange-600 mb-4">📊 Seção 4: Painel de Auditoria (Base de Dados)</h2>
 
             <button class="btn-secondary w-full mb-4" onclick="carregarDadosAuditoria()">🔄 Atualizar Dados</button>
 
@@ -235,6 +247,7 @@ def painel_testes():
                     `<div class="alert alert-success">✅ Autenticado como: <strong>${nome}</strong></div>`;
 
                 mostrarAlerta('Login realizado com sucesso!', 'success');
+                carregarPainelCooperativa();
                 carregarDadosAuditoria();
             } catch (error) {
                 mostrarAlerta('Erro: ' + error.message, 'error');
@@ -310,6 +323,7 @@ def painel_testes():
                 const descarte = await response.json();
                 mostrarAlerta('✅ Descarte registrado com sucesso (ID: ' + descarte.id_descarte + ')', 'success');
                 carregarDescartesPendentes();
+                carregarPainelCooperativa();
                 carregarDadosAuditoria();
             } catch (error) {
                 mostrarAlerta('❌ Erro: ' + error.message, 'error');
@@ -387,9 +401,77 @@ def painel_testes():
                 const resultado = await response.json();
                 mostrarAlerta(`✅ Descarte confirmado! ${resultado.pontos_gerados} pontos gerados!`, 'success');
                 carregarDescartesPendentes();
+                carregarPainelCooperativa();
                 carregarDadosAuditoria();
             } catch (error) {
                 mostrarAlerta('Erro: ' + error.message, 'error');
+            }
+        }
+
+        // ============ RF021 - PAINEL DA COOPERATIVA ============
+        async function carregarPainelCooperativa() {
+            const container = document.getElementById('painelCooperativaPontos');
+            const vazio = document.getElementById('painelCooperativaVazio');
+            container.innerHTML = '';
+
+            if (!token) {
+                vazio.textContent = 'Faça login com uma conta de cooperativa para visualizar os pontos vinculados.';
+                vazio.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch(API_URL + '/cooperativa/painel/pontos-coleta', {
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (!response.ok) {
+                    const erro = await response.json();
+                    throw new Error(erro.detail || 'Erro ao carregar painel da cooperativa');
+                }
+
+                const dados = await response.json();
+                if (!dados.pontos || dados.pontos.length === 0) {
+                    vazio.textContent = dados.mensagem || 'Nenhum ponto de coleta vinculado a esta cooperativa.';
+                    vazio.style.display = 'block';
+                    return;
+                }
+
+                vazio.style.display = 'none';
+                dados.pontos.forEach(ponto => {
+                    const pct = ponto.percentual_preenchimento === null ? null : Number(ponto.percentual_preenchimento);
+                    const statusClasses = {
+                        ativo: 'bg-green-50 border-green-500 text-green-800',
+                        quase_cheio: 'bg-yellow-50 border-yellow-500 text-yellow-800',
+                        cheio: 'bg-red-50 border-red-500 text-red-800',
+                        inativo: 'bg-gray-50 border-gray-500 text-gray-800'
+                    };
+                    const div = document.createElement('div');
+                    div.className = 'p-4 rounded border-l-4 ' + (statusClasses[ponto.status_capacidade] || statusClasses.ativo);
+                    div.innerHTML = `
+                        <div class="flex justify-between gap-3 mb-3">
+                            <div>
+                                <strong>${ponto.nome}</strong>
+                                <p class="text-sm text-gray-600">${ponto.endereco || 'Endereço não informado'}</p>
+                            </div>
+                            <span class="text-xs font-bold uppercase">${ponto.status_capacidade.replace('_', ' ')}</span>
+                        </div>
+                        <p class="text-sm mb-1"><strong>Tipos:</strong> ${(ponto.tipo_residuo || []).join(', ') || 'Não informado'}</p>
+                        <p class="text-sm mb-1"><strong>Coordenadas:</strong> ${ponto.latitude}, ${ponto.longitude}</p>
+                        <p class="text-sm mb-1"><strong>Quantidade atual:</strong> ${ponto.quantidade_atual} kg</p>
+                        <p class="text-sm mb-3"><strong>Capacidade:</strong> ${ponto.limite_capacidade || 'Não definida'} kg</p>
+                        <div class="w-full bg-white rounded h-3 overflow-hidden border">
+                            <div class="h-3 bg-current" style="width:${Math.min(pct || 0, 100)}%"></div>
+                        </div>
+                        <p class="text-right text-sm font-bold mt-1">${pct === null ? 'Sem capacidade definida' : pct + '% preenchido'}</p>
+                    `;
+                    container.appendChild(div);
+                });
+            } catch (error) {
+                vazio.textContent = 'Erro: ' + error.message;
+                vazio.style.display = 'block';
+                mostrarAlerta('Erro ao carregar painel da cooperativa: ' + error.message, 'error');
             }
         }
 
@@ -452,6 +534,7 @@ def painel_testes():
             if (token) {
                 document.getElementById('authStatus').innerHTML = 
                     `<div class="alert alert-success">✅ Autenticado como: <strong>${usuarioNomeStored}</strong></div>`;
+                carregarPainelCooperativa();
             }
             carregarDadosAuditoria();
         });

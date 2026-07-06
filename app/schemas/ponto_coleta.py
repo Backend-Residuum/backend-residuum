@@ -89,3 +89,25 @@ class PontoColetaResponse(BaseModel):
     horarios: List[HorarioResponse] = []
     class Config:
         from_attributes = True
+
+
+class PontoColetaPainelCooperativaItem(BaseModel):
+    """Item do painel operacional da cooperativa para planejamento de coleta."""
+    id: int
+    nome: str
+    endereco: Optional[str] = None
+    latitude: float
+    longitude: float
+    tipo_residuo: List[str]
+    quantidade_atual: float
+    limite_capacidade: Optional[float] = None
+    percentual_preenchimento: Optional[float] = None
+    status_capacidade: str
+
+
+class PainelCooperativaResponse(BaseModel):
+    """Resposta consolidada do painel da cooperativa autenticada."""
+    cooperativa_id: int
+    total_pontos: int
+    mensagem: Optional[str] = None
+    pontos: List[PontoColetaPainelCooperativaItem]

@@ -7,7 +7,6 @@ Gerencia os pontos de coleta e tokens para validação presencial via QR Code.
 from typing import Optional, List, Dict, Any
 import uuid
 from datetime import datetime, timedelta
-<<<<<<< HEAD
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy import or_
@@ -18,18 +17,21 @@ from app.core.exceptions import (
     raise_conflict,
     raise_not_found,
 )
-=======
-from typing import List
->>>>>>> c72a182ed707b5d47e448c468da1f9093deab4aa
 from app.database import get_db
 from app.dependencies.auth import get_current_user, require_role, validar_acesso_operacional_ao_ponto
 from app.models.usuario import Usuario
 from app.models.ponto_coleta import HorarioDisponibilidade
 from app.models.ponto_coleta import PontoColeta
 from app.models.qrcode_token import QRCodeToken
-from app.schemas.ponto_coleta import PontoColetaCreate, PontoColetaResponse, PontoColetaUpdate
+from app.schemas.ponto_coleta import (
+    HorarioCreate,
+    HorarioResponse,
+    PainelCooperativaResponse,
+    PontoColetaCreate,
+    PontoColetaResponse,
+    PontoColetaUpdate,
+)
 from app.schemas.qrcode_token import QRCodeTokenCreate, QRCodeTokenResponse, QRCodeTokenValidate
-<<<<<<< HEAD
 from app.services.ponto_coleta_service import (
     status_ponto_coleta,
     total_inventario_ponto,
@@ -37,9 +39,6 @@ from app.services.ponto_coleta_service import (
     validar_ponto_disponivel_para_descarte,
 )
 from app.services.localizacao_service import calcular_distancia_haversine
-=======
-from app.schemas.ponto_coleta import HorarioCreate, HorarioResponse
->>>>>>> c72a182ed707b5d47e448c468da1f9093deab4aa
 
 router = APIRouter()
 
@@ -101,6 +100,43 @@ def _serializar_ponto(ponto: PontoColeta, distancia_km: Optional[float] = None) 
         "horario_funcionamento": ponto.horario_funcionamento,
         "horarios": ponto.horarios if hasattr(ponto, 'horarios') else [], # <--- ADICIONAR AQUI
         "status": ponto.status or "ativo",
+    }
+
+
+def _status_capacidade_painel(ponto: PontoColeta, percentual: Optional[float]) -> str:
+    status_operacional = status_ponto_coleta(ponto)
+    if status_operacional == "inativo":
+        return "inativo"
+    if status_operacional == "cheio":
+        return "cheio"
+    if percentual is None:
+        return "ativo"
+    if percentual >= 90:
+        return "cheio"
+    if percentual >= 70:
+        return "quase_cheio"
+    return "ativo"
+
+
+def _serializar_ponto_painel_cooperativa(ponto: PontoColeta) -> Dict[str, Any]:
+    inventario = ponto.inventario or {}
+    tipos_residuos = _normalizar_tipos(ponto.tipos_residuos_aceitos)
+    tipos_para_exibir = list(dict.fromkeys([*tipos_residuos, *[str(tipo).strip().lower() for tipo in inventario.keys()]]))
+    total = total_inventario_ponto(ponto)
+    limite = float(ponto.capacidade_maxima) if ponto.capacidade_maxima and ponto.capacidade_maxima > 0 else None
+    percentual = round((total / limite) * 100, 2) if limite else None
+
+    return {
+        "id": ponto.id,
+        "nome": ponto.nome,
+        "endereco": ponto.endereco,
+        "latitude": ponto.latitude,
+        "longitude": ponto.longitude,
+        "tipo_residuo": tipos_para_exibir,
+        "quantidade_atual": round(total, 3),
+        "limite_capacidade": limite,
+        "percentual_preenchimento": percentual,
+        "status_capacidade": _status_capacidade_painel(ponto, percentual),
     }
 
 
@@ -240,6 +276,55 @@ async def listar_pontos_alias(
         db=db,
         usuario_atual=usuario_atual,
     )
+
+
+@router.get(
+    "/cooperativa/painel/pontos-coleta",
+    response_model=PainelCooperativaResponse,
+    tags=["Cooperativa"],
+)
+async def painel_pontos_coleta_cooperativa(
+    db: Session = Depends(get_db),
+    usuario_atual: Usuario = Depends(require_role("cooperativa")),
+):
+    """
+    RF021: retorna os pontos de coleta vinculados à cooperativa autenticada.
+
+    Não expõe pontos sem vínculo ou vinculados a outras cooperativas.
+    """
+    pontos = (
+        db.query(PontoColeta)
+        .filter(PontoColeta.cooperativa_id == usuario_atual.id)
+        .order_by(PontoColeta.nome.asc(), PontoColeta.id.asc())
+        .all()
+    )
+
+    if not pontos:
+        return {
+            "cooperativa_id": usuario_atual.id,
+            "total_pontos": 0,
+            "mensagem": "Nenhum ponto de coleta vinculado a esta cooperativa.",
+            "pontos": [],
+        }
+
+    itens: List[Dict[str, Any]] = []
+    for ponto in pontos:
+        itens.append(_serializar_ponto_painel_cooperativa(ponto))
+
+    itens.sort(
+        key=lambda item: (
+            {"cheio": 0, "quase_cheio": 1, "ativo": 2, "inativo": 3}.get(item["status_capacidade"], 4),
+            item["nome"],
+            ",".join(item["tipo_residuo"]),
+        )
+    )
+
+    return {
+        "cooperativa_id": usuario_atual.id,
+        "total_pontos": len(pontos),
+        "mensagem": None,
+        "pontos": itens,
+    }
 
 
 @router.put("/pontos-coleta/{ponto_id}", response_model=PontoColetaResponse, tags=["Ponto de Coleta"])
