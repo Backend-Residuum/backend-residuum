@@ -23,9 +23,15 @@ from app.models.usuario import Usuario
 from app.models.ponto_coleta import HorarioDisponibilidade
 from app.models.ponto_coleta import PontoColeta
 from app.models.qrcode_token import QRCodeToken
-from app.schemas.ponto_coleta import PontoColetaCreate, PontoColetaResponse, PontoColetaUpdate
+from app.schemas.ponto_coleta import (
+    PontoColetaCreate,
+    PontoColetaDashboardResponse,
+    PontoColetaResponse,
+    PontoColetaUpdate,
+)
 from app.schemas.ponto_coleta import HorarioCreate, HorarioResponse
 from app.schemas.qrcode_token import QRCodeTokenCreate, QRCodeTokenResponse, QRCodeTokenValidate
+from app.services.dashboard_ponto_coleta_service import montar_dashboard_ponto_coleta
 from app.services.ponto_coleta_service import (
     status_ponto_coleta,
     total_inventario_ponto,
@@ -130,6 +136,22 @@ async def criar_ponto_coleta(
     db.commit()
     db.refresh(novo_ponto)
     return _serializar_ponto(novo_ponto)
+
+
+@router.get(
+    "/pontos-coleta/{ponto_id}/dashboard",
+    response_model=PontoColetaDashboardResponse,
+    tags=["Ponto de Coleta"],
+)
+async def obter_dashboard_ponto_coleta(
+    ponto_id: int,
+    db: Session = Depends(get_db),
+    usuario_atual: Usuario = Depends(require_role("admin", "cooperativa")),
+):
+    """Retorna dados consolidados para dashboard operacional do ponto de coleta."""
+    ponto = db.query(PontoColeta).filter(PontoColeta.id == ponto_id).first()
+    validar_acesso_operacional_ao_ponto(usuario_atual, ponto)
+    return montar_dashboard_ponto_coleta(db, ponto)
 
 
 @router.get("/pontos-coleta/{ponto_id}", response_model=PontoColetaResponse, tags=["Ponto de Coleta"])
