@@ -23,6 +23,7 @@ import app.models.descarte # noqa: F401, E402
 import app.models.estoque # noqa: F401, E402
 import app.models.pontuacao # noqa: F401, E402
 import app.models.ponto_coleta # noqa: F401, E402
+import app.models.solicitacao_ponto_coleta # noqa: F401, E402
 import app.models.qrcode_token # noqa: F401, E402
 import app.models.inventario_usuario # noqa: F401, E402
 import app.models.notificacao # noqa: F401, E402
