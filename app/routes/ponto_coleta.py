@@ -41,7 +41,7 @@ from app.services.localizacao_service import calcular_distancia_haversine
 from app.schemas.ponto_coleta import HorarioCreate, HorarioResponse
 >>>>>>> c72a182ed707b5d47e448c468da1f9093deab4aa
 
-router = APIRouter()
+router = APIRouter(tags=["Ponto de Coleta e QR Code"])
 
 
 # ========================

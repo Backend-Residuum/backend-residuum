@@ -11,6 +11,8 @@ from app.core.security import require_auth_unless_public
 
 app = FastAPI(
     title="Residuum API",
+    description="API para gerenciamento de descarte sustentável de resíduos.",
+    version="1.0.0",
     dependencies=[Depends(require_auth_unless_public)],
 )
 
@@ -23,10 +25,10 @@ app.add_middleware(
 )
 
 # Registro das rotas
-app.include_router(auth.router, tags=["Autenticação"])
-app.include_router(descarte.router, prefix="/descarte", tags=["Descarte"])
-app.include_router(endereco.router, tags=["Endereço"])
-app.include_router(ponto_coleta.router, tags=["Ponto de Coleta e QR Code"])
+app.include_router(auth.router)
+app.include_router(descarte.router)
+app.include_router(endereco.router)
+app.include_router(ponto_coleta.router)
 app.include_router(inventario_usuario.router)
 app.include_router(pontuacao.router)
 app.include_router(admin.router)

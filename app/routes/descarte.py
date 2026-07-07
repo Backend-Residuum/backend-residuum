@@ -19,7 +19,7 @@ from app.services.notificacao_service import verificar_capacidade_e_notificar
 from app.services.ponto_coleta_service import validar_ponto_disponivel_para_descarte
 from datetime import datetime
 
-router = APIRouter()
+router = APIRouter(prefix="/descarte", tags=["Descarte"])
 
 @router.post("/", response_model=DescarteResponse)
 async def registrar_descarte(

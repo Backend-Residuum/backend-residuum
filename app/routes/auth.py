@@ -27,7 +27,7 @@ from app.services.serializacao_service import (
 from app.services.extrato_pontos_service import montar_extrato_pontos_usuario
 
 # Roteador para agrupar as rotas de autenticação
-router = APIRouter()
+router = APIRouter(tags=["Autenticação"])
 
 # Contexto para hashing de senhas usando bcrypt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
