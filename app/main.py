@@ -5,7 +5,7 @@ Aplicação Principal - Residuum
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from app.routes import admin, auth, descarte, endereco, ponto_coleta, inventario_usuario, notificacao, pontuacao
+from app.routes import admin, auth, cooperativa, descarte, endereco, ponto_coleta, inventario_usuario, notificacao, pontuacao, solicitacao_ponto_coleta, sorteio, voucher
 from app.core.decorators import public
 from app.core.security import require_auth_unless_public
 
@@ -31,7 +31,11 @@ app.include_router(endereco.router)
 app.include_router(ponto_coleta.router)
 app.include_router(inventario_usuario.router)
 app.include_router(pontuacao.router)
+app.include_router(solicitacao_ponto_coleta.router)
+app.include_router(sorteio.router)
+app.include_router(voucher.router)
 app.include_router(admin.router)
+app.include_router(cooperativa.router)
 app.include_router(notificacao.router, tags=["Notificações"])
 
 @app.get("/")

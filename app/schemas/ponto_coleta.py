@@ -89,3 +89,35 @@ class PontoColetaResponse(BaseModel):
     horarios: List[HorarioResponse] = []
     class Config:
         from_attributes = True
+
+
+class VolumePorTipoPontoColeta(BaseModel):
+    """Volume acumulado por tipo de residuo no inventario atual do ponto."""
+    tipo_residuo: str
+    quantidade: float
+
+
+class HistoricoRecentePontoColeta(BaseModel):
+    """Evento recente confirmado para exibicao no dashboard operacional."""
+    id: int
+    usuario_id: Optional[int] = None
+    tipo_residuo: Optional[str] = None
+    quantidade: float
+    status: str
+    data: Optional[datetime] = None
+
+
+class PontoColetaDashboardResponse(BaseModel):
+    """Resposta consolidada para dashboard operacional do ponto de coleta."""
+    ponto_id: int
+    nome: str
+    endereco: Optional[str] = None
+    status: str
+    capacidade_maxima: Optional[float] = None
+    quantidade_total: float
+    percentual_ocupacao: float
+    status_capacidade: str
+    volume_por_tipo: List[VolumePorTipoPontoColeta] = Field(default_factory=list)
+    usuarios_atendidos: int
+    descartes_pendentes: int
+    historico_recente: List[HistoricoRecentePontoColeta] = Field(default_factory=list)
