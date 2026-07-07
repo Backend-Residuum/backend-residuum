@@ -27,6 +27,8 @@ import app.models.qrcode_token # noqa: F401, E402
 import app.models.inventario_usuario # noqa: F401, E402
 import app.models.notificacao # noqa: F401, E402
 import app.models.resgate_pontuacao # noqa: F401, E402
+import app.models.sorteio # noqa: F401, E402
+import app.models.voucher # noqa: F401, E402
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

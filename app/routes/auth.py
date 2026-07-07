@@ -13,7 +13,7 @@ from app.database import get_db
 from app.models.usuario import Usuario
 from app.models.descarte import Descarte
 from app.models.inventario_usuario import InventarioUsuario
-from app.schemas.usuario import UsuarioCreate
+from app.schemas.usuario import UsuarioCreate, UsuarioUpdate
 from app.schemas.auth import LoginRequest, TokenResponse
 
 from app.core.security import criar_token
@@ -124,6 +124,39 @@ def get_me(usuario: Usuario = Depends(get_current_user)):
 
     Requer token válido no cabeçalho Authorization.
     """
+    return serializar_usuario_basico(usuario)
+
+
+@router.put("/me")
+def atualizar_me(
+    dados: UsuarioUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    """
+    Atualiza apenas os dados basicos do usuario autenticado.
+
+    Nao altera endereco, senha, role, ID ou pontuacao.
+    """
+    if dados.email is not None and dados.email != usuario.email:
+        email_existente = (
+            db.query(Usuario)
+            .filter(Usuario.email == dados.email, Usuario.id != usuario.id)
+            .first()
+        )
+        if email_existente:
+            raise HTTPException(status_code=400, detail="Email ja cadastrado")
+        usuario.email = dados.email
+
+    if dados.nome is not None:
+        usuario.nome = dados.nome
+
+    if dados.telefone is not None:
+        usuario.telefone = dados.telefone
+
+    db.commit()
+    db.refresh(usuario)
+
     return serializar_usuario_basico(usuario)
 
 

@@ -7,7 +7,6 @@ Gerencia os pontos de coleta e tokens para validação presencial via QR Code.
 from typing import Optional, List, Dict, Any
 import uuid
 from datetime import datetime, timedelta
-<<<<<<< HEAD
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy import or_
@@ -18,9 +17,6 @@ from app.core.exceptions import (
     raise_conflict,
     raise_not_found,
 )
-=======
-from typing import List
->>>>>>> c72a182ed707b5d47e448c468da1f9093deab4aa
 from app.database import get_db
 from app.dependencies.auth import get_current_user, require_role, validar_acesso_operacional_ao_ponto
 from app.models.usuario import Usuario
@@ -28,8 +24,8 @@ from app.models.ponto_coleta import HorarioDisponibilidade
 from app.models.ponto_coleta import PontoColeta
 from app.models.qrcode_token import QRCodeToken
 from app.schemas.ponto_coleta import PontoColetaCreate, PontoColetaResponse, PontoColetaUpdate
+from app.schemas.ponto_coleta import HorarioCreate, HorarioResponse
 from app.schemas.qrcode_token import QRCodeTokenCreate, QRCodeTokenResponse, QRCodeTokenValidate
-<<<<<<< HEAD
 from app.services.ponto_coleta_service import (
     status_ponto_coleta,
     total_inventario_ponto,
@@ -37,9 +33,6 @@ from app.services.ponto_coleta_service import (
     validar_ponto_disponivel_para_descarte,
 )
 from app.services.localizacao_service import calcular_distancia_haversine
-=======
-from app.schemas.ponto_coleta import HorarioCreate, HorarioResponse
->>>>>>> c72a182ed707b5d47e448c468da1f9093deab4aa
 
 router = APIRouter()
 
