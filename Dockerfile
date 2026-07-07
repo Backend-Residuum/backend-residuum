@@ -15,7 +15,11 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . .
 
+RUN chmod +x /app/entrypoint.sh
+
 ENV PORT=8080
 EXPOSE 8080
 
-CMD exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
+# O entrypoint roda "alembic upgrade head" (aplica migrations pendentes)
+# antes de iniciar a API a cada nova versão que sobe.
+CMD ["/app/entrypoint.sh"]
