@@ -23,7 +23,6 @@ from app.database import get_db
 from app.dependencies.auth import require_role
 from app.models.audit_log import AuditLog
 from app.models.descarte import Descarte
-from app.models.inventario_usuario import InventarioUsuario
 from app.models.ponto_coleta import PontoColeta
 from app.models.pontuacao import Pontuacao
 from app.models.usuario import Usuario
@@ -39,6 +38,7 @@ from app.services.serializacao_service import (
     serializar_descarte,
     serializar_usuario_basico,
 )
+from app.services.descarte_service import rejeitar_descarte_pendente
 from app.services.transferencia_service import debitar_residuo_do_ponto_coleta
 
 
@@ -345,41 +345,9 @@ def rejeitar_descarte(
     )
     if not descarte:
         raise HTTPException(status_code=404, detail="Descarte não encontrado")
-    if descarte.status != "pendente":
-        raise HTTPException(
-            status_code=400,
-            detail="Apenas descartes pendentes podem ser rejeitados",
-        )
-
-    descarte.status = "rejeitado"
+    rejeitar_descarte_pendente(db, descarte, admin, payload.motivo)
 
     # Libera a quantidade reservada no item de inventário, se houver.
-    if descarte.inventario_usuario_id:
-        item = (
-            db.query(InventarioUsuario)
-            .filter(
-                InventarioUsuario.id == descarte.inventario_usuario_id,
-                InventarioUsuario.usuario_id == descarte.usuario_id,
-            )
-            .first()
-        )
-        if item:
-            reservada_atual = float(item.quantidade_reservada or 0)
-            item.quantidade_reservada = max(
-                reservada_atual - float(descarte.quantidade), 0
-            )
-            if item.status in ("em_transferencia",):
-                item.status = "disponivel"
-
-    registrar_acao(
-        db,
-        admin_id=admin.id,
-        action="descarte.rejeitar",
-        target_type="descarte",
-        target_id=descarte.id_descarte,
-        motivo=payload.motivo,
-        payload={"status_anterior": "pendente"},
-    )
     db.commit()
     db.refresh(descarte)
     return serializar_descarte(descarte, db)
