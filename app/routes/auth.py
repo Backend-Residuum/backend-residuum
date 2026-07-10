@@ -14,9 +14,14 @@ from app.models.usuario import Usuario
 from app.models.descarte import Descarte
 from app.models.inventario_usuario import InventarioUsuario
 from app.schemas.usuario import UsuarioCreate, UsuarioUpdate
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.auth import (
+    LoginRequest,
+    RefreshRequest,
+    RefreshResponse,
+    TokenResponse,
+)
 
-from app.core.security import criar_token
+from app.core.security import criar_refresh_token, criar_token, verificar_token
 from app.core.decorators import public
 from app.dependencies.auth import get_current_user
 from app.services.serializacao_service import (
@@ -102,15 +107,62 @@ def login(dados: LoginRequest = Body(...), db: Session = Depends(get_db)):
             detail="Email ou senha inválidos",
         )
 
-    token = criar_token({
+    dados_token = {
         "sub": str(usuario.id),
         "email": usuario.email,
-    })
+    }
+    token = criar_token(dados_token)
+    refresh = criar_refresh_token({"sub": str(usuario.id)})
 
     return {
         "access_token": token,
+        "refresh_token": refresh,
         "token_type": "bearer",
         "usuario_id": usuario.id,
+    }
+
+
+# ========================
+# REFRESH TOKEN
+# ========================
+@router.post("/refresh", response_model=RefreshResponse)
+@public
+def refresh_token(dados: RefreshRequest = Body(...), db: Session = Depends(get_db)):
+    """
+    Renova o token de acesso a partir de um refresh token válido.
+
+    Suporta a função "Lembre de mim" do app, mantendo o usuário logado sem
+    exigir novo login. Faz rotação do refresh token a cada renovação.
+    """
+    payload = verificar_token(dados.refresh_token)
+
+    if payload.get("type") != "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token inválido",
+        )
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token inválido",
+        )
+
+    usuario = db.query(Usuario).filter(Usuario.id == int(user_id)).first()
+    if not usuario:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuário não encontrado",
+        )
+
+    novo_access = criar_token({"sub": str(usuario.id), "email": usuario.email})
+    novo_refresh = criar_refresh_token({"sub": str(usuario.id)})
+
+    return {
+        "access_token": novo_access,
+        "refresh_token": novo_refresh,
+        "token_type": "bearer",
     }
 
 

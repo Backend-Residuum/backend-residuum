@@ -20,8 +20,21 @@ class TokenResponse(BaseModel):
     """
     Modelo para resposta de login bem-sucedido.
 
-    Retorna o token de acesso, seu tipo e informações do usuário.
+    Retorna o token de acesso, o refresh token, o tipo e informações do usuário.
     """
     access_token: str
+    refresh_token: str
     token_type: str
     usuario_id: int = None
+
+
+class RefreshRequest(BaseModel):
+    """Requisição para renovar o token de acesso a partir do refresh token."""
+    refresh_token: str
+
+
+class RefreshResponse(BaseModel):
+    """Resposta da renovação: novo access token e refresh token rotacionado."""
+    access_token: str
+    refresh_token: str
+    token_type: str

@@ -25,10 +25,13 @@ from app.models.audit_log import AuditLog
 from app.models.descarte import Descarte
 from app.models.ponto_coleta import PontoColeta
 from app.models.pontuacao import Pontuacao
+from app.models.solicitacao_ponto_coleta import SolicitacaoPontoColeta
 from app.models.usuario import Usuario
 from app.schemas.admin import (
     AjustePontuacaoRequest,
+    AprovarSolicitacaoPontoColetaRequest,
     RejeitarDescarteRequest,
+    RejeitarSolicitacaoPontoColetaRequest,
     ReverterDescarteRequest,
     UpdateRoleRequest,
     UsuarioAdminUpdate,
@@ -444,6 +447,191 @@ def desativar_ponto_coleta(
     )
     db.commit()
     return None
+
+
+# ============================================================
+# SOLICITAÇÕES DE PONTO DE COLETA
+# ============================================================
+def _serializar_solicitacao(s: SolicitacaoPontoColeta) -> dict:
+    """Serializa uma solicitação com todos os campos relevantes ao painel."""
+    return {
+        "id": s.id,
+        "usuario_id": s.usuario_id,
+        "tipo_solicitante": s.tipo_solicitante,
+        "documento": s.documento,
+        "responsavel_nome": s.responsavel_nome,
+        "responsavel_telefone": s.responsavel_telefone,
+        "email": s.email,
+        "nome_ponto": s.nome_ponto,
+        "endereco": s.endereco,
+        "latitude": s.latitude,
+        "longitude": s.longitude,
+        "horario_funcionamento": s.horario_funcionamento,
+        "tipos_residuos_aceitos": s.tipos_residuos_aceitos or [],
+        "capacidade_maxima": s.capacidade_maxima,
+        "status": s.status,
+        "motivo_rejeicao": s.motivo_rejeicao,
+        "observacao_admin": s.observacao_admin,
+        "ponto_coleta_id": s.ponto_coleta_id,
+        "revisado_por_id": s.revisado_por_id,
+        "criado_em": s.criado_em,
+        "revisado_em": s.revisado_em,
+    }
+
+
+@router.get("/solicitacoes-pontos-coleta")
+def listar_solicitacoes_pontos_coleta(
+    db: Session = Depends(get_db),
+    status_filtro: str = Query("pendente", alias="status", description="Filtrar por status (use 'todas' para todos)"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+):
+    """Lista solicitações de ponto de coleta. Por padrão retorna as pendentes."""
+    query = db.query(SolicitacaoPontoColeta)
+    if status_filtro and status_filtro != "todas":
+        query = query.filter(SolicitacaoPontoColeta.status == status_filtro)
+
+    total = query.count()
+    itens = (
+        query.order_by(SolicitacaoPontoColeta.criado_em.desc(), SolicitacaoPontoColeta.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "itens": [_serializar_solicitacao(s) for s in itens],
+    }
+
+
+@router.get("/solicitacoes-pontos-coleta/{solicitacao_id}")
+def detalhar_solicitacao_ponto_coleta(solicitacao_id: int, db: Session = Depends(get_db)):
+    """Detalha uma solicitação de ponto de coleta."""
+    solicitacao = (
+        db.query(SolicitacaoPontoColeta)
+        .filter(SolicitacaoPontoColeta.id == solicitacao_id)
+        .first()
+    )
+    if not solicitacao:
+        raise HTTPException(status_code=404, detail="Solicitação não encontrada")
+    return _serializar_solicitacao(solicitacao)
+
+
+@router.post("/solicitacoes-pontos-coleta/{solicitacao_id}/aprovar")
+def aprovar_solicitacao_ponto_coleta(
+    solicitacao_id: int,
+    payload: AprovarSolicitacaoPontoColetaRequest,
+    db: Session = Depends(get_db),
+    admin: Usuario = Depends(require_role("admin")),
+):
+    """Aprova uma solicitação pendente.
+
+    Ao aprovar: altera o status para `aprovada`, cria o ponto de coleta real
+    com status `ativo` e promove o usuário solicitante para o role `cooperativa`.
+    """
+    solicitacao = (
+        db.query(SolicitacaoPontoColeta)
+        .filter(SolicitacaoPontoColeta.id == solicitacao_id)
+        .first()
+    )
+    if not solicitacao:
+        raise HTTPException(status_code=404, detail="Solicitação não encontrada")
+    if solicitacao.status != "pendente":
+        raise_bad_request(
+            f"Apenas solicitações pendentes podem ser aprovadas (status atual: {solicitacao.status})."
+        )
+
+    solicitante = (
+        db.query(Usuario).filter(Usuario.id == solicitacao.usuario_id).first()
+    )
+    if not solicitante:
+        raise HTTPException(status_code=404, detail="Usuário solicitante não encontrado")
+
+    # Cria o ponto de coleta real, vinculado à cooperativa solicitante.
+    ponto = PontoColeta(
+        nome=solicitacao.nome_ponto,
+        endereco=solicitacao.endereco,
+        latitude=solicitacao.latitude,
+        longitude=solicitacao.longitude,
+        capacidade_maxima=solicitacao.capacidade_maxima,
+        tipos_residuos_aceitos=solicitacao.tipos_residuos_aceitos or [],
+        horario_funcionamento=solicitacao.horario_funcionamento,
+        status="ativo",
+        ativo=1,
+        cooperativa_id=solicitante.id,
+        inventario={},
+    )
+    db.add(ponto)
+    db.flush()  # garante ponto.id para vincular na solicitação
+
+    solicitacao.status = "aprovada"
+    solicitacao.ponto_coleta_id = ponto.id
+    solicitacao.revisado_por_id = admin.id
+    solicitacao.revisado_em = datetime.utcnow()
+    if payload.observacao is not None:
+        solicitacao.observacao_admin = payload.observacao
+
+    # Promove o solicitante a cooperativa (não rebaixa admin).
+    role_anterior = solicitante.role
+    if solicitante.role != "admin":
+        solicitante.role = "cooperativa"
+
+    registrar_acao(
+        db,
+        admin_id=admin.id,
+        action="solicitacao_ponto_coleta.aprovar",
+        target_type="solicitacao_ponto_coleta",
+        target_id=solicitacao.id,
+        payload={
+            "ponto_coleta_id": ponto.id,
+            "usuario_id": solicitante.id,
+            "role_de": role_anterior,
+            "role_para": solicitante.role,
+        },
+    )
+    db.commit()
+    db.refresh(solicitacao)
+    return _serializar_solicitacao(solicitacao)
+
+
+@router.post("/solicitacoes-pontos-coleta/{solicitacao_id}/rejeitar")
+def rejeitar_solicitacao_ponto_coleta(
+    solicitacao_id: int,
+    payload: RejeitarSolicitacaoPontoColetaRequest,
+    db: Session = Depends(get_db),
+    admin: Usuario = Depends(require_role("admin")),
+):
+    """Rejeita uma solicitação pendente, marcando o status e salvando o motivo."""
+    solicitacao = (
+        db.query(SolicitacaoPontoColeta)
+        .filter(SolicitacaoPontoColeta.id == solicitacao_id)
+        .first()
+    )
+    if not solicitacao:
+        raise HTTPException(status_code=404, detail="Solicitação não encontrada")
+    if solicitacao.status != "pendente":
+        raise_bad_request(
+            f"Apenas solicitações pendentes podem ser rejeitadas (status atual: {solicitacao.status})."
+        )
+
+    solicitacao.status = "rejeitada"
+    solicitacao.motivo_rejeicao = payload.motivo
+    solicitacao.revisado_por_id = admin.id
+    solicitacao.revisado_em = datetime.utcnow()
+
+    registrar_acao(
+        db,
+        admin_id=admin.id,
+        action="solicitacao_ponto_coleta.rejeitar",
+        target_type="solicitacao_ponto_coleta",
+        target_id=solicitacao.id,
+        motivo=payload.motivo,
+    )
+    db.commit()
+    db.refresh(solicitacao)
+    return _serializar_solicitacao(solicitacao)
 
 
 # ============================================================

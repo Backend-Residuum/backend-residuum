@@ -33,6 +33,13 @@ def get_current_user(
     # Verifica e decodifica o token
     payload = verificar_token(token)
 
+    # Refresh tokens não autenticam rotas normais; só servem para renovar acesso.
+    if payload.get("type") == "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido para esta operação",
+        )
+
     # Extrai o ID do usuário do payload
     user_id = payload.get("sub")
 
