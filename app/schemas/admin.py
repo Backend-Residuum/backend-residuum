@@ -27,3 +27,11 @@ class RejeitarDescarteRequest(BaseModel):
 
 class ReverterDescarteRequest(BaseModel):
     motivo: str = Field(..., min_length=3, max_length=255)
+
+
+class AprovarSolicitacaoPontoColetaRequest(BaseModel):
+    observacao: Optional[str] = Field(default=None, max_length=500)
+
+
+class RejeitarSolicitacaoPontoColetaRequest(BaseModel):
+    motivo: str = Field(..., min_length=3, max_length=500)

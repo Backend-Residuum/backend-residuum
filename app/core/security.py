@@ -19,7 +19,9 @@ load_dotenv()
 # Configurações para JWT
 SECRET_KEY = os.getenv("SECRET_KEY")  # Chave secreta para assinar os tokens
 ALGORITHM = "HS256"  # Algoritmo de criptografia usado
-ACCESS_TOKEN_EXPIRE_MINUTES = 60  # Tempo de expiração do token em minutos
+ACCESS_TOKEN_EXPIRE_MINUTES = 60  # Tempo de expiração do token de acesso em minutos
+# Expiração do refresh token (usado pela função "Lembre de mim" do app).
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
 
 # Valida se a SECRET_KEY foi definida, evitando erros silenciosos
 if not SECRET_KEY:
@@ -31,20 +33,33 @@ security = HTTPBearer(auto_error=True)
 
 def criar_token(data: dict):
     """
-    Cria um token JWT com os dados fornecidos.
+    Cria um token JWT de acesso com os dados fornecidos.
 
     Adiciona uma data de expiração ao payload e codifica usando a chave secreta.
     Útil para gerar tokens de acesso após login bem-sucedido.
     """
     to_encode = data.copy()  # Copia os dados para não modificar o original
 
-    # Define a expiração do token
+    # Define a expiração e o tipo do token
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
 
     # Codifica o payload em um token JWT
     token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return token
+
+
+def criar_refresh_token(data: dict):
+    """
+    Cria um refresh token JWT de longa duração.
+
+    Usado pela função "Lembre de mim" do app: permite renovar o token de
+    acesso sem exigir novo login enquanto o refresh token for válido.
+    """
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def verificar_token(token: str):
@@ -90,7 +105,14 @@ def require_auth_unless_public(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return verificar_token(credentials.credentials)
+    payload = verificar_token(credentials.credentials)
+    if payload.get("type") == "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido para esta operação",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return payload
 
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
